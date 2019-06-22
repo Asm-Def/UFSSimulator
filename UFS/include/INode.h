@@ -5,7 +5,6 @@
 
 struct INode // Stored in disk
 {
-	bit_t bit;	// BlockID
 	fmode_t mode; // (file type) (owner_rwx_flags) (other_rwx_flags)
 	unsigned lcnt; // hard link count, default=1
 	uid_t owner; // owner user id
