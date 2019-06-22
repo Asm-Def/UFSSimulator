@@ -8,10 +8,12 @@ typedef		unsigned int	bid_t;
 typedef		unsigned short	bit_t;
 #define		BID_LEN			sizeof(bit_t)
 // INode
-#define		INODE_DIRECT_SIZE	10
+typedef		disksize_t		diskaddr_t;
+typedef		long long		diskoff_t;
+#define		INODE_DIRECT_SIZE	(1 << 5)
 #define		INODE_TOT_BCNT1	(INODE_DIRECT_SIZE+BLOCK_SIZE/sizeof(bid_t))
-#define		INODE_TOT_BCNT2 (INODE_TOT_BCNT1+BLOCK_SIZE/sizeof(bit_t) * BLOCK_SIZE/sizeof(bit_t))
-
+#define		INODE_TOT_BCNT2 (INODE_TOT_BCNT1+(diskaddr_t)BLOCK_SIZE/sizeof(bit_t) * BLOCK_SIZE/sizeof(bit_t))
+typedef		disksize_t		diskaddr_t;
 typedef		unsigned short	fmode_t;
 #define		FILE_OWNER_R	(1 << 6)
 #define		FILE_OWNER_W	(1 << 5)
@@ -30,5 +32,9 @@ typedef 	unsigned int	uid_t;
 #define		USER_ROOT_UID	0
 #define		USER_PASSWD		"/etc/shadow"
 #define		USER_HOME_DIR	"/home"
+
+// ProcessFDTable
+typedef		unsigned int	ufspid_t;
+typedef		unsigned char	fauth_t;
 
 #endif
