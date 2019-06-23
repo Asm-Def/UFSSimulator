@@ -5,7 +5,6 @@ struct INode;
 struct INodeMem;
 #include "UFSParams.h"
 #include "FileSystem.h"
-#include "INode.h"
 #include <ctime>
 
 struct INode // Stored in disk	size <= 128

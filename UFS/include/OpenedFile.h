@@ -17,6 +17,7 @@ struct OpenedFile
 	diskoff_t lseek(diskoff_t offset, int fromwhere);
 	ssize_t read(void *buf, size_t count);
 	ssize_t write(void *buf, size_t count);
+	diskaddr_t trunc(diskaddr_t length); // 将文件截短至{length}，返回得到的实际长度。回收多余的磁盘块
 };
 
 #endif
