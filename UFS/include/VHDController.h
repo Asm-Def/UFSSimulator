@@ -21,8 +21,8 @@ class VHDController
 	void saveSuperBlock()
 	{
 		#ifdef DEBUG
-		cout << "cnt:" << superBlock.cnt << " ";
-		for(int i = 0;i < GROUP_SIZE;++i) std::cout << superBlock.freeStack[i] << " "; std::cout << endl;
+		//cout << "cnt:" << superBlock.cnt << " ";
+		//for(int i = 0;i < GROUP_SIZE;++i) std::cout << superBlock.freeStack[i] << " "; std::cout << endl;
 		#endif
 		WriteBlock((char *) &superBlock, SUPER_BLOCK_ID);
 	}
