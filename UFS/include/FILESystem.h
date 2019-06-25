@@ -28,7 +28,7 @@ class FileSystem
 	bool Touch(FileDir *curDir, std::string fname, uid_t uid); // create fild {fname} if not exist
 	bool Remove(FileDir *curDir, std::string fname, uid_t uid); // remove an INode and its data
 	bool MakeHardLink(FileDir *curDir, std::string Dest, std::string Src, uid_t uid);
-	bool MakeSoftLink(FileDir *curDir, std::string Dest, std::string Src, uid_t uid)
+	bool MakeSoftLink(FileDir *curDir, std::string Dest, std::string Src, uid_t uid);
 };
 
 #endif
