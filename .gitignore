@@ -9,3 +9,4 @@ CTestTestfile.cmake
 *.exe
 *.o
 *.so
+*.vhd

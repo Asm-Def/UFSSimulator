@@ -11,9 +11,8 @@ bool VHDController::Format()
 	if(!_file.is_open()) throw "no VHD mounted";
 	bid_t number = (this->size+BLOCK_SIZE-1) / BLOCK_SIZE;
 	#ifdef DEBUG
-	cout << "number = " << number << endl;
+	//cout << "number = " << number << endl;
 	#endif
-	
 	superBlock.SetFullFlag();
 	for(bid_t i = number-1;i > 0;--i)
 	{
@@ -28,7 +27,7 @@ bool VHDController::Create(disksize_t sz,string name)
 {
 	setVHDname(name);
 	this->size = sz;
-	_file.open(this->VHDname.c_str(),ios::out|ios::binary);    //open from disk
+	_file.open(this->VHDname.c_str(),ios::in|ios::out|ios::binary);    //open from disk
 	if(!_file) return false;
 	return true;
 }
@@ -52,7 +51,7 @@ bool VHDController::Load(string vhdname)
 
 bool VHDController::ReadBlock(char *buff, bid_t blockID , bit_t begin ,  int len )
 {
-	if(!_file.is_open()) throw "no VHD mounted";
+	if(!_file.is_open()) throw string(__FUNCTION__) + ":" + "no VHD mounted";
 	disksize_t number = this->size / BLOCK_SIZE;
 	if ( blockID < number && len+begin <= BLOCK_SIZE )
 	{
@@ -61,12 +60,13 @@ bool VHDController::ReadBlock(char *buff, bid_t blockID , bit_t begin ,  int len
 		if(!this->_file)
 			return false;
 		else
-			return false;	
+			return true;
 	}
+	else throw "ReadBlock parameters error";
 }
 bool VHDController::WriteBlock(char *buff, bid_t blockID , bit_t begin ,  int len )
 {
-	if(!_file.is_open()) throw "no VHD mounted";
+	if(!_file.is_open()) throw string(__FUNCTION__) + ":" + "no VHD mounted";
 	disksize_t number = this->size / BLOCK_SIZE;
 	if( blockID < number && begin+len <= BLOCK_SIZE)
 	{
@@ -77,9 +77,7 @@ bool VHDController::WriteBlock(char *buff, bid_t blockID , bit_t begin ,  int le
 		else
 		    return true;
 	}
-	else
-	{
-	   return false;}
+	else throw "WriteBlock parameters error";
 }
 
 bool VHDController::FreeBlock(bid_t blockID)
@@ -91,7 +89,7 @@ bool VHDController::FreeBlock(bid_t blockID)
 			throw "Write error";
 			return false;
 		}
-		puts("swap");
+		//for(int i = 0;i < GROUP_SIZE;++i) printf("%lld ", superBlock.freeStack[i]);puts("");
 		memset((char *)&this->superBlock,0,sizeof(SuperBlock));
 		this->superBlock.cnt = 1;
 	} 
@@ -109,9 +107,9 @@ bool VHDController::AllocBlock(bid_t &newblock)
 	newblock = this->superBlock.freeStack[this->superBlock.cnt-1]; 
 	if(this->superBlock.cnt == 1)
 	{
-		printf("newblock =%d\n", newblock);
 		if(!this->ReadBlock((char *)&this->superBlock , newblock , 0 , sizeof(SuperBlock)))
 		{
+			//for(int i = 0;i < GROUP_SIZE;++i) printf("%lld ", superBlock.freeStack[i]);puts("");
 			throw string("Fail to ReadBlock at ") + __FILE__ + ":" + to_string(__LINE__);
 			return false;
 		}

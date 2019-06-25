@@ -3,7 +3,27 @@
 #include "../include/VHDController.h"
 #include <bits/stdc++.h>
 using namespace std;
-class VHDControllerTest
+class UnionTest
+{
+	public:
+	virtual void test() = 0;
+	bool doTest()
+	{
+		try { test(); }
+		catch(string str)
+		{
+			cout << typeid(this).name() << ":" << str << endl;
+			return false;
+		}
+		catch(const char *str)
+		{
+			cout << typeid(this).name() << ":" << str << endl;
+			return false;
+		}
+		return true;
+	}
+};
+class VHDControllerTest : public UnionTest
 {
 	VHDController vhd;
 	vector<bid_t> lst;
@@ -21,7 +41,7 @@ class VHDControllerTest
 		{
 			bid_t x;
 			vhd.AllocBlock(x);
-			cout << x << endl;
+			//cout << x << endl;
 			for(int i = 0;i < BLOCK_SIZE-1;++i) buff[i] = (rand() % 26) + 'a';
 			buff[BLOCK_SIZE-1] = 0;
 			lst.push_back(x);
@@ -30,28 +50,17 @@ class VHDControllerTest
 		}
 		for(int i = 1;i <= 20;++i)
 		{
-			cout << buf[i-1] << endl;
 			vhd.ReadBlock(buff, lst[i-1]);
-			cout << buff << endl;
+			assert(strcmp(buf[i-1].c_str(), buff) == 0);
 			vhd.FreeBlock(lst[i-1]);
 		}
+		cout << typeid(this).name() << ": Succeed" << endl;
 	}
 };
 
 int main()
 {
 	VHDControllerTest testerVHD;
-	try
-	{
-		testerVHD.test();
-	}
-	catch(string str)
-	{
-		cout << str << endl;
-	}
-	catch(const char *str)
-	{
-		cout << str << endl;
-	}
+	testerVHD.doTest();
 	return 0;
 }
