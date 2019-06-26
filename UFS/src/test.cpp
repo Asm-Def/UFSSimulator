@@ -1,6 +1,7 @@
 #include "../include/INode.h"
 #include "../include/TestOS.h"
 #include "../include/VHDController.h"
+#include "../include/FileSystem.h"
 #include <bits/stdc++.h>
 using namespace std;
 class UnionTest
@@ -32,8 +33,18 @@ class VHDControllerTest : public UnionTest
 	public:
 	VHDControllerTest()
 	{
-		vhd.Create((disksize_t) 1024, "1.vhd");
-		vhd.Format();
+		try{
+			vhd.Create((disksize_t) 1024, "1.vhd");
+			vhd.Format();
+		}
+		catch(std::string str)
+		{
+			cout << str << endl;
+		}
+		catch(const char *str)
+		{
+			cout << str << endl;
+		}
 	}
 	void test()
 	{
@@ -58,9 +69,29 @@ class VHDControllerTest : public UnionTest
 	}
 };
 
+class FileSystemTest : public UnionTest
+{
+	FileSystem FS;
+	public:
+
+	FileSystemTest()
+	{
+		
+	}
+
+	void test()
+	{
+		FS.LoadVHD("1.vhd");
+		
+	}
+};
+
 int main()
 {
 	VHDControllerTest testerVHD;
 	testerVHD.doTest();
+
+	FileSystemTest testerFS;
+	testerFS.doTest();
 	return 0;
 }

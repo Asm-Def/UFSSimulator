@@ -12,8 +12,9 @@ const bit_t				BLOCK_SIZE		= (1 << 12);
 #endif
 const unsigned short	BID_LEN			= sizeof(bit_t);
 const unsigned			GROUP_SIZE		= ((BLOCK_SIZE - sizeof(bit_t)) / sizeof(bid_t));
-const bid_t				SUPER_BLOCK_ID	= 0;
-const bid_t				ROOT_BLOCK_ID	= 1;
+const bid_t				INFO_BLOCK_ID	= 0;
+const bid_t				SUPER_BLOCK_ID	= 1;
+const bid_t				ROOT_BLOCK_ID	= 2;
 // INode
 typedef		disksize_t		diskaddr_t;
 typedef		long long		diskoff_t;
@@ -21,8 +22,10 @@ typedef		unsigned short	fmode_t;
 #ifdef DEBUG
 const bit_t				INODE_DIRECT_SIZE = (1u << 3);
 #else
-const bit_t				INODE_DIRECT_SIZE = (1u << 5);
+const bit_t				INODE_DIRECT_SIZE = 23u;
 #endif
+#define					INODE_SIZE		sizeof(INode)
+#define					INODE_PER_BLOCK	BLOCK_SIZE / INODE_SIZE
 const disksize_t		INODE_TOT_BCNT1	= (INODE_DIRECT_SIZE+BLOCK_SIZE/sizeof(bid_t));
 const disksize_t		INODE_TOT_BCNT2 = (INODE_TOT_BCNT1+(diskaddr_t)BLOCK_SIZE/sizeof(bit_t) * BLOCK_SIZE/sizeof(bit_t));
 #define		FILE_OWNER_R	(1 << 5)
