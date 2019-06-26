@@ -34,7 +34,7 @@ class VHDControllerTest : public UnionTest
 	VHDControllerTest()
 	{
 		try{
-			vhd.Create((disksize_t) 1024, "1.vhd");
+			vhd.Create((disksize_t) BLOCK_SIZE * 32, "1.vhd");
 			vhd.Format();
 		}
 		catch(std::string str)

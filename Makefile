@@ -8,7 +8,7 @@ all : test
 test : $(BIN)/test
 
 $(BIN)/test: $(BIN) $(INC)/*.h $(SRC)/VHDController.cpp $(SRC)/FileSystem.cpp $(SRC)/OpenedFile.cpp $(SRC)/test.cpp
-	$(cppc) $(cppflags) -g -DDEBUG $(SRC)/test.cpp $(SRC)/VHDController.cpp $(SRC)/FileSystem.cpp -o $(BIN)/test
+	$(cppc) $(cppflags) -g -DDEBUG $(SRC)/test.cpp $(SRC)/VHDController.cpp $(SRC)/FileSystem.cpp $(SRC)/INode.cpp -o $(BIN)/test
 
 $(BIN):
 	mkdir -p $@
