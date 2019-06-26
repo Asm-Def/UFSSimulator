@@ -4,6 +4,17 @@
 #include"UFSParams.h"
 #include<cstring>
 using namespace std;
+struct InfoBlock
+{
+	disksize_t size;
+	bid_t blockNumber;
+	bid_t nxtINodeBlockID;
+	bit_t nxtINodeLocation;
+	InfoBlock(disksize_t sz = 0, bid_t nxtblock = ROOT_BLOCK_ID, bit_t nxtinode = 1) : size(sz), nxtINodeBlockID(nxtblock), nxtINodeLocation(nxtinode)
+	{
+		blockNumber = (size+BLOCK_SIZE-1) / BLOCK_SIZE;
+	}
+};
 struct SuperBlock
 {
 	bit_t cnt;       //the number of free blocks

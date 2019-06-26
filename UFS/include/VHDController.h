@@ -12,7 +12,6 @@ class VHDController;
 #endif
 class VHDController
 {
-	disksize_t size;
 	std::string VHDname;           //VHD name 
 	fstream  _file;
 	SuperBlock superBlock;
@@ -30,10 +29,22 @@ class VHDController
 	{
 		ReadBlock((char *) &superBlock, SUPER_BLOCK_ID);
 	}
+	void loadInfoBlock()
+	{
+		ReadBlock((char *) &info, INFO_BLOCK_ID, 0, sizeof(InfoBlock));
+	}
 	public:
-	VHDController() : _file(), size(0), VHDname("") {}
-	~VHDController() {};
-	disksize_t getSize() { return size; }
+	void saveInfoBlock()
+	{
+		WriteBlock((char *) &info, INFO_BLOCK_ID, 0, sizeof(InfoBlock));
+	}
+	InfoBlock info;
+	VHDController() : _file(), VHDname(""), info() {}
+	~VHDController()
+	{
+		if(_file.is_open()) Save();
+	}
+	disksize_t getSize() { return info.size; }
 	string getVHDname(){  return VHDname;}
 	bool Format();     //格式化当前VHD 
 	void setVHDname(string name){ this->VHDname=name; }
@@ -41,6 +52,7 @@ class VHDController
 	bool Create(disksize_t sz, std::string name);         //Init a Virtual HD 
 	bool Exists();    // Check the exitence of VHD
 	bool Load(std::string vhdname);    //Load VHD  
+	bool Save(); // Save current VHD;
 	bool ReadBlock(char *buff, bid_t blockID , bit_t begin = 0 , int len = BLOCK_SIZE);
 	bool WriteBlock(char *buff, bid_t blockID , bit_t begin = 0 ,  int len = BLOCK_SIZE);
 	//以上两个函数一次只读写一个Block

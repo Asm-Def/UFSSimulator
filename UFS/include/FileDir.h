@@ -8,9 +8,11 @@ struct FileDir;
 struct FileDir
 {
 	std::string name;
-	INodeMem *curINode;
+	INodeMem curINode;
 	FileDir *parent; // =NULL when curINode representing '/'
-	~FileDir();
+	FileDir(std::string nm, INodeMem inode) : name(nm), curINode(inode), parent(NULL)
+	{}
+	~FileDir(){}
 };
 
 #endif

@@ -9,9 +9,9 @@ using namespace std;
 bool VHDController::Format()
 {
 	if(!_file.is_open()) throw "no VHD mounted";
-	bid_t number = (this->size+BLOCK_SIZE-1) / BLOCK_SIZE;
+	bid_t number = info.blockNumber;
 	#ifdef DEBUG
-	//cout << "number = " << number << endl;
+	cout << "number = " << number << endl;
 	#endif
 	superBlock.SetFullFlag();
 	for(bid_t i = number-1;i > 0;--i)
@@ -22,11 +22,14 @@ bool VHDController::Format()
 	return true;
 }
 
-// Create a new VHD without opening or formatting
+// Create a new VHD without formatting
 bool VHDController::Create(disksize_t sz,string name) 
 {
+	if(_file.is_open()) Save();
 	setVHDname(name);
-	this->size = sz;
+	this->info = InfoBlock(sz);
+	_file.open(VHDname.c_str(), ios::out | ios::binary);
+	_file.close();
 	_file.open(this->VHDname.c_str(),ios::in|ios::out|ios::binary);    //open from disk
 	if(!_file) return false;
 	return true;
@@ -38,10 +41,21 @@ bool VHDController::Exists()
 	return file.good();
 }
 
+bool VHDController::Save()
+{
+	if(!_file.is_open()) return false;
+	saveInfoBlock();
+	saveSuperBlock();
+	return true;
+}
+
 bool VHDController::Load(string vhdname)
 {
+	if(_file.is_open()) Save();
 	VHDname = vhdname;
 	_file.open(vhdname, ios::in | ios::out | ios::binary);
+	puts("1");
+	loadInfoBlock();
 	if(!ReadBlock((char *) &superBlock, SUPER_BLOCK_ID, 0, sizeof(SuperBlock)))
 	{
 		return false;
@@ -52,8 +66,8 @@ bool VHDController::Load(string vhdname)
 bool VHDController::ReadBlock(char *buff, bid_t blockID , bit_t begin ,  int len )
 {
 	if(!_file.is_open()) throw string(__FUNCTION__) + ":" + "no VHD mounted";
-	disksize_t number = this->size / BLOCK_SIZE;
-	if ( blockID < number && len+begin <= BLOCK_SIZE )
+	disksize_t ;
+	if ( blockID < info.blockNumber && len+begin <= BLOCK_SIZE )
 	{
 		this->_file.seekg((disksize_t) blockID * BLOCK_SIZE+begin, ios::beg);      //the position of block = blockID *BLOCKSIZE+begin
 		this->_file.read(buff,len);     //read the content of block
@@ -62,13 +76,16 @@ bool VHDController::ReadBlock(char *buff, bid_t blockID , bit_t begin ,  int len
 		else
 			return true;
 	}
-	else throw "ReadBlock parameters error";
+	else
+	{
+		printf("blockID=%d, len=%d, begin=%d, BLOCKSIZE=%d, number=%d\n", blockID, len, begin, BLOCK_SIZE, info.blockNumber);
+		throw "ReadBlock parameters error";
+	}
 }
 bool VHDController::WriteBlock(char *buff, bid_t blockID , bit_t begin ,  int len )
 {
 	if(!_file.is_open()) throw string(__FUNCTION__) + ":" + "no VHD mounted";
-	disksize_t number = this->size / BLOCK_SIZE;
-	if( blockID < number && begin+len <= BLOCK_SIZE)
+	if( blockID < info.blockNumber && begin+len <= BLOCK_SIZE)
 	{
 		this->_file.seekp((disksize_t) blockID * BLOCK_SIZE+begin, ios::beg);
 		this->_file.write(buff,len);    //write the content of buff into disk 
@@ -92,11 +109,18 @@ bool VHDController::FreeBlock(bid_t blockID)
 		//for(int i = 0;i < GROUP_SIZE;++i) printf("%lld ", superBlock.freeStack[i]);puts("");
 		memset((char *)&this->superBlock,0,sizeof(SuperBlock));
 		this->superBlock.cnt = 1;
+		saveSuperBlock();
 	} 
 	else         //not full
+	{
 		this->superBlock.cnt++;
+		WriteBlock((char*) &superBlock.cnt, SUPER_BLOCK_ID, (bit_t) ((char*)&superBlock.cnt - (char*)&superBlock), sizeof(bit_t));
+	}
 	this->superBlock.freeStack[this->superBlock.cnt-1] = blockID;
-	saveSuperBlock();
+	WriteBlock((char*) &superBlock.freeStack[this->superBlock.cnt-1], SUPER_BLOCK_ID, (bit_t) ((char*)&superBlock.freeStack[this->superBlock.cnt-1] - (char*)&superBlock), sizeof(bit_t));
+
+	//saveSuperBlock();
+
 	return true;
 }
 
@@ -113,8 +137,14 @@ bool VHDController::AllocBlock(bid_t &newblock)
 			throw string("Fail to ReadBlock at ") + __FILE__ + ":" + to_string(__LINE__);
 			return false;
 		}
+		saveSuperBlock();
 	}
-	else this->superBlock.cnt--;
-	saveSuperBlock();
+	else
+	{
+		this->superBlock.cnt--;
+		WriteBlock((char*) &superBlock.cnt, SUPER_BLOCK_ID, (bit_t) ((char*)&superBlock.cnt - (char*)&superBlock), sizeof(bit_t));
+	}
+	//saveSuperBlock();
+
 	return true;
 }

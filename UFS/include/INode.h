@@ -4,7 +4,6 @@
 struct INode;
 struct INodeMem;
 #include "UFSParams.h"
-#include "FileSystem.h"
 #include <ctime>
 
 struct INode // Stored in disk	size <= 128
@@ -19,22 +18,31 @@ struct INode // Stored in disk	size <= 128
 
 	bid_t direct_data[INODE_DIRECT_SIZE]; // direct datablocks
 	bid_t indirect1, indirect2;
-	// max block count = INODE_DATASIZE + sum of (BLOCKSIZE/sizeof(bid_t))^i
-
-	INode();
-	diskaddr_t size() const;
-	bid_t GetBlock(bid_t number); //TODO
-	bid_t AppendBlock();
-	bool PopBlock();
+	// max block count = INODE_DATASIZE + sum of (BLOCKSIZE/sizeof(bid_t))^i	
 };
 
-struct INodeMem : INode // Stored in memory
+struct INodeMem // Stored in memory
 {
 	bid_t BlockID;
 	bit_t Location; // location of INode in the block
-	FileSystem *FS;
-
-	INodeMem();//TODO
+	INode *inode;
+	struct FileSystem *FS;
+	
+	diskaddr_t size()
+	{
+		if(inode == NULL) return 0;
+		return (diskaddr_t) inode->blocks * BLOCK_SIZE + inode->rem_bytes;
+	}
+	INode *getINode() // get a INode pointer
+	{
+		if(inode == NULL) inode = new INode();
+		return inode;
+	}
+	INodeMem(bid_t blockID, bit_t loc, struct FileSystem *fs) : BlockID(blockID), Location(loc), FS(fs), inode(NULL) {}
+	~INodeMem()
+	{
+		if(inode) delete inode;
+	}
 };
 
 #endif
