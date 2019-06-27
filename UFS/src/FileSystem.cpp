@@ -71,12 +71,15 @@ void FileSystem::PopINodeCache(INodeCacheItem *cur)
 	cur->nxt->lst = cur->lst;
 	--CacheSize;
 }
+
+// 不插入Set
 void FileSystem::PushINodeCache(INodeCacheItem *cur)
 {
 	(cur->nxt = INodeCacheHead->nxt) -> lst = cur;
 	(cur->lst = INodeCacheHead) -> nxt = cur;
 	++CacheSize;
 }
+// 移出Set
 void FileSystem::EraseINodeCache(INodeCacheItem *cur)
 {
 	if(cur->changed)
@@ -108,6 +111,7 @@ void FileSystem::ClearINodeCache()
 		delete cur;
 	}
 	INodeCacheHead->nxt = INodeCacheHead->lst = INodeCacheHead;
+	Set.clear();
 }
 // INode
 
