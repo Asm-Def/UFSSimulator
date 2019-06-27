@@ -10,7 +10,9 @@ struct InfoBlock
 	bid_t blockNumber;
 	bid_t nxtINodeBlockID;
 	bit_t nxtINodeLocation;
-	InfoBlock(disksize_t sz = 2, bid_t nxtblock = ROOT_BLOCK_ID, bit_t nxtinode = 1) : size(sz), nxtINodeBlockID(nxtblock), nxtINodeLocation(nxtinode)
+	uid_t user_cnt;
+	InfoBlock(disksize_t sz = 2, bid_t nxtblock = ROOT_BLOCK_ID, bit_t nxtinode = 1, uid_t uc = 1)
+		: size(sz), nxtINodeBlockID(nxtblock), nxtINodeLocation(nxtinode), user_cnt(uc)
 	{
 		blockNumber = (size+BLOCK_SIZE-1) / BLOCK_SIZE;
 	}

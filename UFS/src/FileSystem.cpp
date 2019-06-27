@@ -17,6 +17,7 @@ FileSystem::~FileSystem()
 		INodeCacheItem *cur = (INodeCacheItem *) it;
 		if(cur->changed)
 		{
+			cout << "destuct FS: " << cur->address.first << " " << cur->address.second << endl;
 			if(!WriteINode(&cur->value, cur->address.first, cur->address.second))
 			{
 				std::cout << (std::string(__FILE__) + " " + std::to_string(__LINE__)) << std::endl;
@@ -130,7 +131,7 @@ INode &FileSystem::AccessINode(bid_t BlockID, bit_t Location)
 		(*it)->value.atime = time(NULL);
 		return (*it)->value;
 	}
-	else // 新曾一个缓存项
+	else // 新增一个缓存项
 	{
 		INodeCacheItem *ptr;
 		if(CacheSize == INODE_CACHE_CNT)
@@ -172,15 +173,30 @@ bool FileSystem::AllocINode(bid_t &BlockID, bit_t &Location)
 	return true;
 }
 
+bool ShowMem(char *buff, size_t size)
+{
+	//for(int i = 0;i < size;++i) printf("%02x ", buff[i]);
+	//puts("");
+}
 bool FileSystem::ReadINode(INode *inode, bid_t BlockID, bit_t Location)
 {
 	if(inode == NULL) return false;
+	//printf("ReadINode (%d,%d)\n", BlockID, Location);
 	vhd.ReadBlock((char *) inode, BlockID, Location * INODE_SIZE, INODE_SIZE);
+	//printf("mode=%03o\n", inode->mode);
+	//printf("cnt = %d, rem = %d\n", inode->blocks, inode->rem_bytes);
+	//printf("direct0 = %u\n", inode->direct_data[0]);
+	//ShowMem((char*) inode, INODE_SIZE);
 	return true;
 }
 bool FileSystem::WriteINode(const INode *inode, bid_t BlockID, bit_t Location)
 {
 	if(inode == NULL) return false;
+	//printf("WriteINode (%d,%d)\n", BlockID, Location);
+	//printf("mode=%03o\n", inode->mode);
+	//printf("cnt = %d, rem = %d\n", inode->blocks, inode->rem_bytes);
+	//printf("direct0 = %u\n", inode->direct_data[0]);
+	//ShowMem((char*) inode, INODE_SIZE);
 	vhd.WriteBlock((char *) inode, BlockID, Location * INODE_SIZE, INODE_SIZE);
 	return true;
 }
@@ -336,10 +352,12 @@ void FileSystem::ListDir(FileDir *curDir, uid_t uid)
 	if(!curDir->subDirs.empty()) return;
 	unsigned cnt;
 	int sz = 0;
+	//printf("%d %d\n", curDir->curINode.BlockID, curDir->curINode.Location);
 	INode &inode = AccessINode(curDir->curINode);
+	//printf("fmode = %o\n", inode.mode);
 	if(!inode.isDir())
 	{
-		Throw(curDir->name + " is not a director");
+		Throw("\"" + curDir->name + "\" is not a director");
 	}
 
 	{
@@ -348,16 +366,24 @@ void FileSystem::ListDir(FileDir *curDir, uid_t uid)
 
 	if(!inode.checkR(uid)) Throw("Permission Denied by " + curDir->name);
 
+	//printf("%s:cnt = %d\n", __FUNCTION__, cnt);
 	sz += ReadFile(curDir, (char*) &cnt, 0, sizeof(cnt), uid);
+	//printf("sz=%d,", sz);
 	bid_t BlockID;
 	bit_t Location;
+	//printf("Reading at (%d,%d)\n", curDir->curINode.BlockID, curDir->curINode.Location);
 	for(int i = 0;i < cnt;++i)
 	{
 		bit_t len;
 		sz += ReadFile(curDir, (char*) &len, sz, sizeof(len), uid);
+	//printf("sz=%d,", sz);
 		sz += ReadFile(curDir, namebuff, sz, len, uid);
+	//printf("sz=%d,", sz);
 		sz += ReadFile(curDir, (char*) &BlockID, sz, sizeof(bid_t), uid);
+	//printf("sz=%d,", sz);
 		sz += ReadFile(curDir, (char*) &Location, sz, sizeof(bit_t), uid);
+	//printf("sz=%d,", sz);
+		//printf("Reading (%d %d)\n", BlockID, Location);
 		FileDir *tmp = new FileDir(string(namebuff), INodeMem(BlockID, Location, this));
 		curDir->subDirs.push_back(tmp);
 	}
@@ -367,13 +393,19 @@ void FileSystem::SaveDir(FileDir *curDir, uid_t uid)
 	unsigned cnt = curDir->subDirs.size();
 	int sz = 0;
 	sz += WriteFile(curDir, (char*) &cnt, 0, sizeof(cnt), uid);
+	//printf("sz=%d,", sz);
+	//printf("Writing at (%d,%d)\n", curDir->curINode.BlockID, curDir->curINode.Location);
 	for(int i = 0;i < cnt;++i)
 	{
 		bit_t len = curDir->subDirs[i]->name.length() + 1;
 		sz += WriteFile(curDir, (char*) &len, sz, sizeof(len), uid);
+	//printf("sz=%d,", sz);
 		sz += WriteFile(curDir, curDir->subDirs[i]->name.c_str(), sz, len, uid);
+	//printf("sz=%d,", sz);
 		sz += WriteFile(curDir, (char*) &curDir->subDirs[i]->curINode.BlockID, sz, sizeof(bid_t), uid);
+	//printf("sz=%d,", sz);
 		sz += WriteFile(curDir, (char*) &curDir->subDirs[i]->curINode.Location, sz, sizeof(bit_t), uid);
+	//printf("sz=%d,", sz);
 	}
 }
 FileDir *FileSystem::FindLastDir(FileDir *cur, std::string dir, std::string &last, uid_t uid)
@@ -385,11 +417,11 @@ FileDir *FileSystem::FindLastDir(FileDir *cur, std::string dir, std::string &las
 		dir.pop_back();
 		from = getDir(dir), last = getName(dir);
 	}
-	//cout << from << " " << last << endl;
 	return FindDir(cur, from, uid);
 }
 FileDir *FileSystem::FindDir(FileDir *cur, std::string dir, uid_t uid)
 {
+	//printf("%s: cur=%x, dir=%s\n", __FUNCTION__, cur, dir.c_str());
 	if(dir == "") return cur;
 	if(dir == "/") return rootDir;
 	if(dir == "." || dir == "./") return cur;
@@ -397,7 +429,6 @@ FileDir *FileSystem::FindDir(FileDir *cur, std::string dir, uid_t uid)
 
 	std::string from, last;
 	//printf("cur=%x, last=%s\n", cur, last.c_str());
-
 	cur = FindLastDir(cur, dir, last, uid);
 	//printf("cur=%x, last=%s\n", cur, last.c_str());
 
@@ -421,6 +452,7 @@ FileDir *FileSystem::FindDir(FileDir *cur, std::string dir, uid_t uid)
 		}
 		return it;
 	}
+	Throw(dir + " Not Found");
 	return cur;
 }
 void FileSystem::AddFileDir(FileDir *curDir, FileDir *newDir, uid_t uid)
@@ -433,8 +465,9 @@ void FileSystem::AddFileDir(FileDir *curDir, FileDir *newDir, uid_t uid)
 bool FileSystem::MakeDir(FileDir *curDir, std::string fname, uid_t uid)
 {
 	std::string from, last;
-	from = getDir(fname), last = getName(fname);
-	curDir = FindDir(curDir, fname, uid);
+	from = getDir(fname);
+	curDir = FindLastDir(curDir, fname, last, uid);
+	cout << __FUNCTION__ << " : " << from << " " << last << endl;
 
 	bid_t BlockID;
 	bit_t Location;
@@ -571,13 +604,19 @@ ssize_t FileSystem::ReadFile(INode &inode, char *buff, diskaddr_t begin, size_t 
 		size = end - begin;
 		buff[size] = EOF;
 	}
+	//printf("Reading [%lld, %lld)\n", begin, end);
 	for(K = begin / BLOCK_SIZE, it = K * BLOCK_SIZE, L = begin-it;it < end;++K, it += BLOCK_SIZE, L = 0)
 	{
 		blockID = getKthBlock(inode, K);
-		if(end - it > BLOCK_SIZE) cnt = BLOCK_SIZE;
-		else cnt = end - it;
+		// if(end - it > BLOCK_SIZE) cnt = BLOCK_SIZE - L;
+		// else if(it < begin) cnt = end - begin;
+		// else cnt = end - it;
+		if(end - it > BLOCK_SIZE) cnt = BLOCK_SIZE - L;
+		else cnt = end - it - L;
 		vhd.ReadBlock(buff + it + L - begin, blockID, L, cnt);
+		//printf("cnt = %d\n", cnt);
 	}
+	//for(int i = 0;i < size;++i) printf("%02x ", buff[i]); puts("");
 	return end - begin;
 }
 ssize_t FileSystem::WriteFile(FileDir *file, const char *buff, diskaddr_t begin, size_t size, uid_t uid)
@@ -621,7 +660,7 @@ ssize_t FileSystem::WriteFile(INode &inode, const char *buff, diskaddr_t begin, 
 	//printf("K=%d, blocks=%d, begin=%lld, it=%lld, L=%d, size=%d\n", K, inode.blocks, begin, it, L, size);
 	for(;it < end;it += BLOCK_SIZE, L = 0)
 	{
-		if(end - it - L > BLOCK_SIZE) cnt = BLOCK_SIZE;
+		if(end - it > BLOCK_SIZE) cnt = BLOCK_SIZE - L;
 		else cnt = end - it - L;
 		vhd.WriteBlock(buff + it + L - begin, blockID, L, cnt);
 		//printf("K=%d, blocks=%d, L=%d, cnt=%d\n", K, inode.blocks, L, cnt);
@@ -645,6 +684,8 @@ ssize_t FileSystem::WriteFile(INode &inode, const char *buff, diskaddr_t begin, 
 			blockID = getKthBlock(inode, ++K);
 		}
 	}
+	//printf("Writing [%lld, %lld)\n", begin, end);
+	//for(int i = 0;i < size;++i) printf("%02x ", buff[i]); puts("");
 	return end - begin;
 }
 

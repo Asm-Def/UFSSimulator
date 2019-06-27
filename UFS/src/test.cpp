@@ -76,7 +76,10 @@ class FileSystemTest : public UnionTest
 
 	FileSystemTest()
 	{
-		try{ FS.CreateVHD((disksize_t) BLOCK_SIZE * 32, "2.vhd") ; }
+		try{
+			//FS.CreateVHD((disksize_t) BLOCK_SIZE * 32, "2.vhd") ;
+			FS.LoadVHD("2.vhd");
+		}
 		catch(string str)
 		{
 			cout << str << endl;
@@ -91,10 +94,20 @@ class FileSystemTest : public UnionTest
 	{
 		FS.ListDir(FS.getRoot(), USER_ROOT_UID);
 		FileDir *root = FS.getRoot();
+		//FS.Touch(root, "/iajosd.txt", 0);
+		//FS.Remove(root, "iajosd.txt", 0);
+		//FS.MakeDir(root, "/home", 0);
+		FileDir *tmp = FS.FindDir(root, "home", 0);
+		char buff[4096];
+
+		FS.ListDir(tmp, 0);
+		for(auto it : tmp->subDirs)
+			cout << it->name << endl;
+
+		FS.ListDir(root, 0);
 		for(auto it : root->subDirs)
-		cout << it->name << endl;
-		FS.FindDir(FS.getRoot(), "iajosd.txt", 0);
-		cout << typeid(this).name() << ": Suceed" << endl;
+			cout << it->name << endl;
+		cout << typeid(this).name() << ": Succeed" << endl;
 	}
 };
 

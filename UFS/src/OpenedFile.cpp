@@ -1,4 +1,5 @@
-#include "OpenedFile.h"
+#include "../include/OpenedFile.h"
+#include "../include/FileDir.h"
 diskoff_t OpenedFile::lseek(diskoff_t offset, int fromwhere)
 {
 	if(fromwhere == SEEK_CUR){
@@ -11,7 +12,7 @@ diskoff_t OpenedFile::lseek(diskoff_t offset, int fromwhere)
 	}
 	else
 	{
-		diskaddr_t sz = curDir->curINode->size();
+		diskaddr_t sz = curDir->curINode.size();
 		if(sz + offset < 0) return -1;
 		cur = sz + offset;
 	}

@@ -43,6 +43,7 @@ class VHDController
 	~VHDController()
 	{
 		if(_file.is_open()) Save();
+		_file.close();
 	}
 	disksize_t getSize() { return info.size; }
 	string getVHDname(){  return VHDname;}

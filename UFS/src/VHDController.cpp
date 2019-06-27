@@ -14,7 +14,7 @@ bool VHDController::Format()
 	cout << "number = " << number << endl;
 	#endif
 	superBlock.SetFullFlag();
-	for(bid_t i = number-1;i > 1;--i)
+	for(bid_t i = number-1;i > 2;--i)
 	{
 		if(!FreeBlock(i)) throw "Cannot Free Block " + i;
 	}
@@ -29,6 +29,9 @@ bool VHDController::Create(disksize_t sz,string name)
 	setVHDname(name);
 	this->info = InfoBlock(sz);
 	_file.open(VHDname.c_str(), ios::out | ios::binary);
+	_file.seekp(sz - 1, ios::beg);
+	char ch = 0;
+	_file.write(&ch, 1);
 	_file.close();
 	_file.open(this->VHDname.c_str(),ios::in|ios::out|ios::binary);    //open from disk
 	saveInfoBlock();
@@ -68,6 +71,7 @@ bool VHDController::ReadBlock(char *buff, bid_t blockID , bit_t begin ,  int len
 	if(!_file.is_open()) throw string(__FUNCTION__) + ":" + "no VHD mounted";
 	if ( blockID < info.blockNumber && len+begin <= BLOCK_SIZE )
 	{
+		//printf("seekg %lld\n", (disksize_t) blockID * BLOCK_SIZE+begin);
 		this->_file.seekg((disksize_t) blockID * BLOCK_SIZE+begin, ios::beg);      //the position of block = blockID *BLOCKSIZE+begin
 		this->_file.read(buff,len);     //read the content of block
 		if(!this->_file)
