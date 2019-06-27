@@ -11,25 +11,21 @@ struct FileDir
 	std::string name;
 	INodeMem curINode;
 	std::vector<FileDir*> subDirs;
-	FileDir *parent; // =NULL when curINode representing '/'
-	FileDir(std::string nm, INodeMem inode) : name(nm), curINode(inode), parent(NULL)
+	FileDir *parent; // =this when curINode representing '/'
+	FileDir(std::string nm, INodeMem inode) : name(nm), curINode(inode), parent(this)
 	{}
 	~FileDir()
 	{
-		clearDirs();
+		if(name != "." && name != "..") clearDirs();
 	}
 	void clearDirs()
 	{
 		INode *inode = curINode.getINode();
 		if((inode->mode & FILE_TYPE_MASK)==FILE_TYPE_DIR)
 		{
-			for(FileDir* &dir : subDirs)
-			{
-				if(dir->name != "." && dir->name != "..") delete dir;
-			}
+			for(FileDir* &dir : subDirs) delete dir;
 		}
-		std::vector<FileDir*> tmp;
-		subDirs.swap(tmp);
+		subDirs.clear();
 	}
 };
 

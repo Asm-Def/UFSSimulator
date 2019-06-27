@@ -49,8 +49,11 @@ bool FileSystem::LoadVHD(std::string vhdname)
 }
 bool FileSystem::FormatVHD() // 重建文件系统(同时创建根目录)
 {
+	ClearINodeCache();
 	vhd.Format();
 	INodeMem rootINode(ROOT_BLOCK_ID, 0, this);
+	INode &inode = AccessINode(rootINode);
+	inode = INode(FILE_TYPE_DIR, USER_ROOT_UID);
 	rootDir = new FileDir("", rootINode);
 	return true;
 }
@@ -88,7 +91,24 @@ void FileSystem::RefreshINodeCache(INodeCacheItem *cur)
 	PopINodeCache(cur);
 	PushINodeCache(cur);
 }
-
+void FileSystem::ClearINodeCache()
+{
+	CacheSize = 0;
+	for(ItemList *it = INodeCacheHead->nxt, *tmp;it != INodeCacheHead;)
+	{
+		INodeCacheItem *cur = (INodeCacheItem *) it;
+		if(cur->changed)
+		{
+			if(!WriteINode(&cur->value, cur->address.first, cur->address.second))
+			{
+				Throw(std::string(__FILE__) + " " + std::to_string(__LINE__));
+			}
+		}
+		it = it->nxt;
+		delete cur;
+	}
+	INodeCacheHead->nxt = INodeCacheHead->lst = INodeCacheHead;
+}
 // INode
 
 INode &FileSystem::AccessINode(bid_t BlockID, bit_t Location)
@@ -299,6 +319,8 @@ FileDir *FileSystem::FindDir(FileDir *cur, std::string dir, uid_t uid)
 {
 	if(dir == "") return cur;
 	if(dir == "/") return rootDir;
+	if(dir == "." || dir == "./") return cur;
+	if(dir == ".." || dir == "../") return cur->parent;
 
 	std::string from, last;
 	cur = FindLastDir(cur, dir, last, uid);
@@ -323,6 +345,7 @@ FileDir *FileSystem::FindDir(FileDir *cur, std::string dir, uid_t uid)
 void FileSystem::AddFileDir(FileDir *curDir, FileDir *newDir, uid_t uid)
 {
 	curDir->subDirs.push_back(newDir);
+	newDir->parent = curDir;
 	SaveDir(curDir, uid);
 }
 
@@ -343,6 +366,7 @@ bool FileSystem::MakeDir(FileDir *curDir, std::string fname, uid_t uid)
 	FileDir *parentDir = new FileDir("..", curDir->curINode);
 	AddFileDir(newDir, thisDir, uid);
 	AddFileDir(newDir, parentDir, uid);
+
 	AddFileDir(curDir, newDir, uid);
 	return true;
 }
@@ -517,4 +541,5 @@ ssize_t FileSystem::WriteFile(FileDir *file, const char *buff, diskaddr_t begin,
 diskaddr_t FileSystem::TruncFile(struct FileDir *file, diskaddr_t length, uid_t uid)
 {
 	//TODO
+	return length;
 }

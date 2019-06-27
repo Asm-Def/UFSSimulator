@@ -52,6 +52,7 @@ class FileSystem
 	void EraseINodeCache(INodeCacheItem *);
 	void PopINodeCache(INodeCacheItem *);
 	void PushINodeCache(INodeCacheItem *);
+	void ClearINodeCache();
 	std::set<INodeCacheItem*, Cmp> Set;
 
 	public:
