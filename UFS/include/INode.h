@@ -17,7 +17,10 @@ struct INode // Stored in disk	size <= 128
 	bit_t rem_bytes; // remain bytes
 	time_t atime; // last access time
 	time_t mtime; // last modify time
+	diskaddr_t size();
 
+	INode();
+	INode(fmode_t Type, uid_t uid);
 	bid_t direct_data[INODE_DIRECT_SIZE]; // direct datablocks
 	bid_t indirect1, indirect2;
 	// max block count = INODE_DATASIZE + sum of (BLOCKSIZE/sizeof(bid_t))^i

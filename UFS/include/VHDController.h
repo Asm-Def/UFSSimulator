@@ -54,7 +54,7 @@ class VHDController
 	bool Load(std::string vhdname);    //Load VHD  
 	bool Save(); // Save current VHD;
 	bool ReadBlock(char *buff, bid_t blockID , bit_t begin = 0 , int len = BLOCK_SIZE);
-	bool WriteBlock(char *buff, bid_t blockID , bit_t begin = 0 ,  int len = BLOCK_SIZE);
+	bool WriteBlock(const char *buff, bid_t blockID , bit_t begin = 0 ,  int len = BLOCK_SIZE);
 	//以上两个函数一次只读写一个Block
 	bool FreeBlock(bid_t blockID);      //回收空闲块 
 	bool AllocBlock(bid_t &newblock);    //分配空闲块

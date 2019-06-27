@@ -17,11 +17,17 @@ diskoff_t OpenedFile::lseek(diskoff_t offset, int fromwhere)
 	}
 	return cur;
 }
-ssize_t OpenedFile::read(void *buf, size_t count)
+ssize_t OpenedFile::read(void *buf, size_t count, uid_t uid)
 {
-	//TODO
+	ssize_t sz = FS->ReadFile(this->curDir, (char *) buf, cur, count, uid);
+	if(sz < 0) return sz;
+	cur += sz;
+	return sz;
 }
-ssize_t OpenedFile::write(void *buf, size_t count)
+ssize_t OpenedFile::write(void *buf, size_t count, uid_t uid)
 {
-	//TODO
+	ssize_t sz = FS->WriteFile(this->curDir, (char *) buf, cur, count, uid);
+	if(sz < 0) return sz;
+	cur += sz;
+	return sz;
 }

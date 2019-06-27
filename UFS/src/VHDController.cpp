@@ -81,7 +81,7 @@ bool VHDController::ReadBlock(char *buff, bid_t blockID , bit_t begin ,  int len
 		throw "ReadBlock parameters error";
 	}
 }
-bool VHDController::WriteBlock(char *buff, bid_t blockID , bit_t begin ,  int len )
+bool VHDController::WriteBlock(const char *buff, bid_t blockID , bit_t begin ,  int len )
 {
 	if(!_file.is_open()) throw string(__FUNCTION__) + ":" + "no VHD mounted";
 	if( blockID < info.blockNumber && begin+len <= BLOCK_SIZE)

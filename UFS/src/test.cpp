@@ -82,7 +82,8 @@ class FileSystemTest : public UnionTest
 	void test()
 	{
 		FS.LoadVHD("1.vhd");
-		
+		FS.FindDir(NULL, "/oaisjdf/aosidjf/iajosd.txt", 0);
+		cout << typeid(this).name() << ": Suceed" << endl;
 	}
 };
 
@@ -90,8 +91,12 @@ int main()
 {
 	VHDControllerTest testerVHD;
 	testerVHD.doTest();
-
-	FileSystemTest testerFS;
-	testerFS.doTest();
+	{
+		FileSystemTest testerFS;
+		testerFS.doTest();
+			
+		puts("destructing FS");
+	}
+	puts("destructed FS");
 	return 0;
 }
