@@ -133,6 +133,7 @@ INode &FileSystem::AccessINode(bid_t BlockID, bit_t Location)
 		{
 			ptr = (INodeCacheItem *) INodeCacheHead->lst;
 			EraseINodeCache(ptr);
+			Set.erase(ptr);
 		}
 		else
 		{
