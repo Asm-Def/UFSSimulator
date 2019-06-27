@@ -43,6 +43,7 @@ class FileSystem
 	void setKthBlock(INode &inode, bid_t K, bid_t blockID);
 	// 确保inode.rem_bytes == BLOCK_SIZE
 	bid_t AppendBlock(INode &inode);
+	bool PopBlock(INode &inode);
 
 	// INodeCache
 

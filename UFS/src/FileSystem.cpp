@@ -126,7 +126,7 @@ INode &FileSystem::AccessINode(bid_t BlockID, bit_t Location)
 		(*it)->value.atime = time(NULL);
 		return (*it)->value;
 	}
-	else
+	else // 新曾一个缓存项
 	{
 		INodeCacheItem *ptr;
 		if(CacheSize == INODE_CACHE_CNT)
@@ -203,6 +203,7 @@ bid_t FileSystem::getKthBlock(const INode &inode, bid_t K)
 	}
 	else Throw("K is too large");
 }
+// 仅在K == inode.blocks && inode.rembytes == BLOCK_SIZE时使用. 不改变inode.blocks和rembytes
 void FileSystem::setKthBlock(INode &inode, bid_t K, bid_t blockID)
 {
 	if(K != inode.blocks + 1 || inode.rem_bytes != BLOCK_SIZE)
@@ -263,8 +264,63 @@ bid_t FileSystem::AppendBlock(INode &inode)
 	return newBlock;
 }
 
+bool FileSystem::PopBlock(INode &inode)
+{
+	if(inode.blocks < 0) return false;
+	if(inode.blocks < INODE_DIRECT_SIZE)
+	{
+		vhd.FreeBlock(inode.direct_data[inode.blocks--]);
+		inode.rem_bytes = BLOCK_SIZE;
+		return true;
+	}
+	bid_t K = inode.blocks - INODE_DIRECT_SIZE, blockID;
+	--inode.blocks;
+	if(K < INODE_BCNT1)
+	{
+		if(!vhd.ReadBlock((char*)&blockID, inode.indirect1, K*BID_LEN, BID_LEN))
+		{
+			Throw("Failed to read from indirect1 : " + std::to_string(K * BID_LEN));
+		}
+		if(!vhd.FreeBlock(blockID)) Throw("Failed to FreeBlock");
+		if(K == 0)
+		{
+			if(!vhd.FreeBlock(inode.indirect1)) Throw("Failed to FreeBlock");
+			inode.indirect1 = 0;
+		}
+		return true;
+	}
+	K -= INODE_BCNT1;
+	if(K < INODE_BCNT2)
+	{
+		bid_t tmp, ind1;
+		tmp = K / (BLOCK_SIZE / BID_LEN); // K所在的一阶间址表在二阶间址表中的序号
+		if(!vhd.ReadBlock((char*) &ind1, inode.indirect2, tmp * BID_LEN, BID_LEN))
+		{
+			Throw("Failed to Read from indirect2 : " + std::to_string(tmp * BID_LEN));
+		}
+		if(!vhd.ReadBlock((char*) &blockID, ind1, (K-tmp*(BLOCK_SIZE/BID_LEN))*BID_LEN, BID_LEN))
+		{
+			Throw("Failed to Read from indirect2 : " + std::to_string(tmp * BID_LEN));
+		}
+		if(!vhd.FreeBlock(blockID)) Throw("Failed to FreeBlock");
+
+		if(K - tmp * (BLOCK_SIZE / BID_LEN) == 0) // 需要在indirect2块中删除一个一阶间址表的blockID
+		{
+			if(!vhd.FreeBlock(ind1)) Throw("Failed to Free indirect2[" + std::to_string(tmp) + "]");
+		}
+		if(K == 0)
+		{
+			if(!vhd.FreeBlock(inode.indirect2)) Throw("Failed to Free indirect2");
+		}
+		vhd.WriteBlock((char*)&blockID, ind1, K*BID_LEN, BID_LEN);
+		return true;
+	}
+	else Throw("K is too large");
+}
+
 // Dir
 
+// 将FileDir表从磁盘中读出
 void FileSystem::ListDir(FileDir *curDir, uid_t uid)
 {
 	static char namebuff[BLOCK_SIZE];
@@ -275,7 +331,7 @@ void FileSystem::ListDir(FileDir *curDir, uid_t uid)
 	INode &inode = AccessINode(curDir->curINode);
 	if((inode.mode & FILE_TYPE_MASK) != FILE_TYPE_DIR)
 	{
-		Throw(curDir->name + " is no a director");
+		Throw(curDir->name + " is not a director");
 	}
 	fmode_t tmp = (uid == inode.owner) ? ((inode.mode & (7<<3))>>3) : (inode.mode & 7);
 	if((tmp & FILE_OTHER_R) == 0) Throw("Permission Denied by " + curDir->name);
