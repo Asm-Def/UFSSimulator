@@ -275,10 +275,10 @@ bid_t FileSystem::AppendBlock(INode &inode)
 bool FileSystem::PopBlock(INode &inode)
 {
 	if(inode.blocks < 0) return false;
+	inode.rem_bytes = BLOCK_SIZE;
 	if(inode.blocks < INODE_DIRECT_SIZE)
 	{
 		vhd.FreeBlock(inode.direct_data[inode.blocks--]);
-		inode.rem_bytes = BLOCK_SIZE;
 		return true;
 	}
 	bid_t K = inode.blocks - INODE_DIRECT_SIZE, blockID;
@@ -558,6 +558,10 @@ ssize_t FileSystem::ReadFile(FileDir *file, char *buff, diskaddr_t begin, size_t
 }
 ssize_t FileSystem::ReadFile(INode &inode, char *buff, diskaddr_t begin, size_t size, uid_t uid)
 {
+	if(begin >= inode.size())
+	{
+		return EOF;
+	}
 	diskaddr_t end = begin + size, it;
 	bid_t K, blockID;
 	bit_t L, cnt;
@@ -647,5 +651,13 @@ ssize_t FileSystem::WriteFile(INode &inode, const char *buff, diskaddr_t begin, 
 diskaddr_t FileSystem::TruncFile(struct FileDir *file, diskaddr_t length, uid_t uid)
 {
 	//TODO
+	bid_t K = length / BLOCK_SIZE; // blocks -> K
+	INode &inode = AccessINode(file->curINode);
+	inode.atime = inode.mtime = time(NULL);
+	while(inode.blocks > K)
+	{
+		PopBlock(inode);
+	}
+	inode.rem_bytes = length % BLOCK_SIZE; //rem_bytes -> K
 	return length;
 }

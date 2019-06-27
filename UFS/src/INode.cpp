@@ -31,6 +31,7 @@ INode::INode(fmode_t Type, uid_t uid, FileSystem *FS)
 }
 diskaddr_t INode::size()
 {
+	if(blocks == -1) return 0;
 	return (diskaddr_t) blocks * BLOCK_SIZE + rem_bytes;
 }
 diskaddr_t INodeMem::size()

@@ -89,7 +89,10 @@ class FileSystemTest : public UnionTest
 
 	void test()
 	{
-
+		FS.ListDir(FS.getRoot(), USER_ROOT_UID);
+		FileDir *root = FS.getRoot();
+		for(auto it : root->subDirs)
+		cout << it->name << endl;
 		FS.FindDir(FS.getRoot(), "iajosd.txt", 0);
 		cout << typeid(this).name() << ": Suceed" << endl;
 	}
