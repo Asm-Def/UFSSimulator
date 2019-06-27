@@ -59,6 +59,16 @@ bool FileSystem::FormatVHD() // 重建文件系统(同时创建根目录)
 	rootDir = new FileDir("", rootINode);
 	rootDir->subDirs.push_back(new FileDir(".", rootINode));
 	rootDir->subDirs.push_back(new FileDir("..", rootINode));
+	MakeDir(rootDir, "etc", USER_ROOT_UID);
+	Touch(rootDir, "etc/passwd", USER_ROOT_UID);
+	{
+		INode &tmp = AccessINode(FindDir(rootDir, "etc/passwd", USER_ROOT_UID)->curINode);
+		tmp.mode = tmp.mode & ~(FILE_OTHER_R | FILE_OTHER_W | FILE_OTHER_X);
+		const char *str = "root 0 123456\n";
+		WriteFile(tmp, str, 0, sizeof(str), USER_ROOT_UID);
+	}
+
+	MakeDir(rootDir, "home", USER_ROOT_UID);
 	SaveDir(rootDir, USER_ROOT_UID);
 	return true;
 }

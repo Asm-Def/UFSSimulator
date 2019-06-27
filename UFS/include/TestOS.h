@@ -35,10 +35,10 @@ class Session
 class TestOS
 {
 	FileSystem RootFS;
-	// TODO: UserManager
+	UserManager userManager;
 
 	public:
-	TestOS(){}
+	TestOS();
 	void Init(string vhdfilename, string rootpass = "root");
 	vector<string> ListUsers();
 	Session *Login(string name, string pass);
