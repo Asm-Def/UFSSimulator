@@ -33,6 +33,7 @@ FileSystem::~FileSystem()
 bool FileSystem::CreateVHD(disksize_t sz, std::string name)
 {
 	vhd.Create(sz, name);
+	//cout << "sz" << sz << endl;
 	if(!FormatVHD())
 	{
 		return false;
@@ -53,9 +54,7 @@ bool FileSystem::FormatVHD() // 重建文件系统(同时创建根目录)
 	vhd.Format();
 	INodeMem rootINode(ROOT_BLOCK_ID, 0, this);
 	INode &inode = AccessINode(rootINode);
-
 	inode = INode(FILE_TYPE_DIR, USER_ROOT_UID, this);
-	
 	rootDir = new FileDir("", rootINode);
 	rootDir->subDirs.push_back(new FileDir(".", rootINode));
 	rootDir->subDirs.push_back(new FileDir("..", rootINode));
@@ -187,10 +186,12 @@ bool FileSystem::WriteINode(const INode *inode, bid_t BlockID, bit_t Location)
 }
 bid_t FileSystem::getKthBlock(const INode &inode, bid_t K)
 {
-	if(K > inode.blocks) Throw("K is too large");
+	//cout << K << " " << inode.blocks << endl;
+	if((long long) K > inode.blocks) Throw("K is too large");
 	if(K < INODE_DIRECT_SIZE) return inode.direct_data[K];
 	K -= INODE_DIRECT_SIZE;
 	bid_t ans;
+
 	if(K < INODE_BCNT1)
 	{
 		vhd.ReadBlock((char*)&ans, inode.indirect1, K*BID_LEN, BID_LEN);
@@ -213,6 +214,7 @@ void FileSystem::setKthBlock(INode &inode, bid_t K, bid_t blockID)
 {
 	if(K != inode.blocks + 1 || inode.rem_bytes != BLOCK_SIZE)
 	{
+		//cout << "K = " << K << " blocks=" << inode.blocks << " rembytes=" << inode.rem_bytes << endl;
 		Throw("Not time for getting new block");
 	}
 	if(K < INODE_DIRECT_SIZE)
@@ -262,10 +264,11 @@ bid_t FileSystem::AppendBlock(INode &inode)
 	if(inode.rem_bytes != BLOCK_SIZE)
 		Throw("Not time for Appending");
 	inode.atime = inode.mtime = time(NULL);
-	inode.rem_bytes = 0;
 	bid_t newBlock;
 	vhd.AllocBlock(newBlock);
-	setKthBlock(inode, ++inode.blocks, newBlock);
+	setKthBlock(inode, inode.blocks+1, newBlock);
+	++inode.blocks;
+	inode.rem_bytes = 0;
 	return newBlock;
 }
 
@@ -340,8 +343,7 @@ void FileSystem::ListDir(FileDir *curDir, uid_t uid)
 	}
 
 	{
-		puts("?");
-		printf("curDir = \"%s\", cur->INode = (%d,%d)\n", curDir->name.c_str(), curDir->curINode.BlockID, curDir->curINode.Location);
+		//printf("curDir = \"%s\", cur->INode = (%d,%d)\n", curDir->name.c_str(), curDir->curINode.BlockID, curDir->curINode.Location);
 	}
 
 	if(!inode.checkR(uid)) Throw("Permission Denied by " + curDir->name);
@@ -383,7 +385,7 @@ FileDir *FileSystem::FindLastDir(FileDir *cur, std::string dir, std::string &las
 		dir.pop_back();
 		from = getDir(dir), last = getName(dir);
 	}
-	cout << from << " " << last << endl;
+	//cout << from << " " << last << endl;
 	return FindDir(cur, from, uid);
 }
 FileDir *FileSystem::FindDir(FileDir *cur, std::string dir, uid_t uid)
@@ -394,10 +396,10 @@ FileDir *FileSystem::FindDir(FileDir *cur, std::string dir, uid_t uid)
 	if(dir == ".." || dir == "../") return cur->parent;
 
 	std::string from, last;
-	printf("cur=%x, last=%s\n", cur, last.c_str());
+	//printf("cur=%x, last=%s\n", cur, last.c_str());
 
 	cur = FindLastDir(cur, dir, last, uid);
-	printf("cur=%x, last=%s\n", cur, last.c_str());
+	//printf("cur=%x, last=%s\n", cur, last.c_str());
 
 	// TODO: 文件名结尾出现/的情况
 	if(last == "") return cur;
@@ -407,7 +409,7 @@ FileDir *FileSystem::FindDir(FileDir *cur, std::string dir, uid_t uid)
 	fmode_t tmp = (uid == inode.owner) ? ((inode.mode & (7<<3))>>3) : (inode.mode & 7);
 
 	{
-		printf("curDir = \"%s\", cur->INode = (%d,%d)\n", cur->name.c_str(), cur->curINode.BlockID, cur->curINode.Location);
+		//printf("curDir = \"%s\", cur->INode = (%d,%d)\n", cur->name.c_str(), cur->curINode.BlockID, cur->curINode.Location);
 	}
 
 	ListDir(cur, uid);
@@ -580,7 +582,7 @@ ssize_t FileSystem::WriteFile(FileDir *file, const char *buff, diskaddr_t begin,
 }
 ssize_t FileSystem::WriteFile(INode &inode, const char *buff, diskaddr_t begin, size_t size, uid_t uid)
 {
-
+	if(!size) return 0;
 	diskaddr_t end = begin + size, it;
 	bid_t K = begin / BLOCK_SIZE, blockID;
 	it = K * BLOCK_SIZE;
@@ -588,33 +590,51 @@ ssize_t FileSystem::WriteFile(INode &inode, const char *buff, diskaddr_t begin, 
 	static char Buff0[BLOCK_SIZE] = {0};
 	
 	// 当写入位置超过文件大小时，扩张文件
-	blockID = getKthBlock(inode, inode.blocks);
-	while(inode.blocks < K)
+	if(inode.blocks == -1)
 	{
-		if(inode.rem_bytes != BLOCK_SIZE)
-		{
-			vhd.WriteBlock(Buff0, blockID, inode.rem_bytes, BLOCK_SIZE - inode.rem_bytes);
-			inode.rem_bytes = BLOCK_SIZE;
-		}
 		blockID = AppendBlock(inode);
 	}
+
+	if(inode.blocks < K)
+	{
+		blockID = getKthBlock(inode, inode.blocks);
+		while(inode.blocks < K)
+		{
+			if(inode.rem_bytes != BLOCK_SIZE)
+			{
+				vhd.WriteBlock(Buff0, blockID, inode.rem_bytes, BLOCK_SIZE - inode.rem_bytes);
+				inode.rem_bytes = BLOCK_SIZE;
+			}
+			blockID = AppendBlock(inode);
+		}
+	}
+	else blockID = getKthBlock(inode, K);
 	if(inode.blocks == K && inode.rem_bytes < L)
 	{
 		vhd.WriteBlock(Buff0, blockID, inode.rem_bytes, L - inode.rem_bytes);
 		inode.rem_bytes = L;
 	}
+	//printf("K=%d, blocks=%d, begin=%lld, it=%lld, L=%d, size=%d\n", K, inode.blocks, begin, it, L, size);
 	for(;it < end;it += BLOCK_SIZE, L = 0)
 	{
 		if(end - it - L > BLOCK_SIZE) cnt = BLOCK_SIZE;
 		else cnt = end - it - L;
 		vhd.WriteBlock(buff + it + L - begin, blockID, L, cnt);
-		if(K == inode.blocks && L + cnt > inode.rem_bytes) // 写入后文件扩张
+		//printf("K=%d, blocks=%d, L=%d, cnt=%d\n", K, inode.blocks, L, cnt);
+		if(K == inode.blocks)
 		{
-			if((inode.rem_bytes = L + cnt) == BLOCK_SIZE && it + BLOCK_SIZE < end) //写满一块，还要继续写
+			if(L + cnt > inode.rem_bytes) // 写入后文件扩张
 			{
-				blockID = AppendBlock(inode);
+				if((inode.rem_bytes = L + cnt) == BLOCK_SIZE && it + BLOCK_SIZE < end) //写满一块，还要继续写
+				{
+					blockID = AppendBlock(inode);
+				}
+				++K;
 			}
-			++K;
+			else // 不会继续循环
+			{
+				break;
+			}
 		}
 		else
 		{

@@ -12,7 +12,7 @@ struct INode // Stored in disk	size <= 128
 	unsigned lcnt; // hard link count, default=1
 	uid_t owner; // owner user id
 	// full block count (default=-1)
-	unsigned blocks;
+	int blocks;
 	// remain bytes (default = BLOCK_SIZE)
 	bit_t rem_bytes; // remain bytes
 	time_t atime; // last access time
