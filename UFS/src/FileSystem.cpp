@@ -53,8 +53,13 @@ bool FileSystem::FormatVHD() // 重建文件系统(同时创建根目录)
 	vhd.Format();
 	INodeMem rootINode(ROOT_BLOCK_ID, 0, this);
 	INode &inode = AccessINode(rootINode);
-	inode = INode(FILE_TYPE_DIR, USER_ROOT_UID);
+
+	inode = INode(FILE_TYPE_DIR, USER_ROOT_UID, this);
+	
 	rootDir = new FileDir("", rootINode);
+	rootDir->subDirs.push_back(new FileDir(".", rootINode));
+	rootDir->subDirs.push_back(new FileDir("..", rootINode));
+	SaveDir(rootDir, USER_ROOT_UID);
 	return true;
 }
 
@@ -329,12 +334,17 @@ void FileSystem::ListDir(FileDir *curDir, uid_t uid)
 	unsigned cnt;
 	int sz = 0;
 	INode &inode = AccessINode(curDir->curINode);
-	if((inode.mode & FILE_TYPE_MASK) != FILE_TYPE_DIR)
+	if(!inode.isDir())
 	{
 		Throw(curDir->name + " is not a director");
 	}
-	fmode_t tmp = (uid == inode.owner) ? ((inode.mode & (7<<3))>>3) : (inode.mode & 7);
-	if((tmp & FILE_OTHER_R) == 0) Throw("Permission Denied by " + curDir->name);
+
+	{
+		puts("?");
+		printf("curDir = \"%s\", cur->INode = (%d,%d)\n", curDir->name.c_str(), curDir->curINode.BlockID, curDir->curINode.Location);
+	}
+
+	if(!inode.checkR(uid)) Throw("Permission Denied by " + curDir->name);
 
 	sz += ReadFile(curDir, (char*) &cnt, 0, sizeof(cnt), uid);
 	bid_t BlockID;
@@ -384,13 +394,21 @@ FileDir *FileSystem::FindDir(FileDir *cur, std::string dir, uid_t uid)
 	if(dir == ".." || dir == "../") return cur->parent;
 
 	std::string from, last;
+	printf("cur=%x, last=%s\n", cur, last.c_str());
+
 	cur = FindLastDir(cur, dir, last, uid);
+	printf("cur=%x, last=%s\n", cur, last.c_str());
 
 	// TODO: 文件名结尾出现/的情况
 	if(last == "") return cur;
 
+
 	INode &inode = AccessINode(cur->curINode);
 	fmode_t tmp = (uid == inode.owner) ? ((inode.mode & (7<<3))>>3) : (inode.mode & 7);
+
+	{
+		printf("curDir = \"%s\", cur->INode = (%d,%d)\n", cur->name.c_str(), cur->curINode.BlockID, cur->curINode.Location);
+	}
 
 	ListDir(cur, uid);
 	for(auto &it : cur->subDirs) if(it->name == last)
@@ -421,7 +439,7 @@ bool FileSystem::MakeDir(FileDir *curDir, std::string fname, uid_t uid)
 	AllocINode(BlockID, Location);
 	FileDir *newDir = new FileDir(last, INodeMem(BlockID, Location, this));
 	INode &inode = AccessINode(newDir->curINode);
-	inode = INode(FILE_TYPE_DIR, uid);
+	inode = INode(FILE_TYPE_DIR, uid, this);
 
 	FileDir *thisDir = new FileDir(".", newDir->curINode);
 	FileDir *parentDir = new FileDir("..", curDir->curINode);
@@ -446,7 +464,7 @@ bool FileSystem::Touch(struct FileDir *curDir, std::string fname, uid_t uid)
 	AllocINode(BlockID, Location);
 	FileDir *newDir = new FileDir(last, INodeMem(BlockID, Location, this));
 	INode &inode = AccessINode(newDir->curINode);
-	inode = INode(FILE_TYPE_FILE, uid);
+	inode = INode(FILE_TYPE_FILE, uid, this);
 
 	AddFileDir(curDir, newDir, uid);
 	return true;
@@ -526,7 +544,7 @@ bool FileSystem::MakeSoftLink(FileDir *curDir, std::string Dest, std::string Src
 	
 	// 设置INode信息
 	INode &inode = AccessINode(inodemem);
-	inode = INode(FILE_TYPE_LINK, uid);
+	inode = INode(FILE_TYPE_LINK, uid, this);
 	WriteFile(newDir, Src.c_str(), 0, Src.length() + 1, uid);
 	AddFileDir(destDir, newDir, uid);
 
@@ -534,10 +552,13 @@ bool FileSystem::MakeSoftLink(FileDir *curDir, std::string Dest, std::string Src
 }
 ssize_t FileSystem::ReadFile(FileDir *file, char *buff, diskaddr_t begin, size_t size, uid_t uid)
 {
+	return ReadFile(AccessINode(file->curINode), buff, begin, size, uid);
+}
+ssize_t FileSystem::ReadFile(INode &inode, char *buff, diskaddr_t begin, size_t size, uid_t uid)
+{
 	diskaddr_t end = begin + size, it;
 	bid_t K, blockID;
 	bit_t L, cnt;
-	INode &inode = AccessINode(file->curINode);
 	if(end > inode.size()) // 到达文件末尾
 	{
 		end = inode.size();
@@ -555,11 +576,15 @@ ssize_t FileSystem::ReadFile(FileDir *file, char *buff, diskaddr_t begin, size_t
 }
 ssize_t FileSystem::WriteFile(FileDir *file, const char *buff, diskaddr_t begin, size_t size, uid_t uid)
 {
+	return WriteFile(AccessINode(file->curINode), buff, begin, size, uid);
+}
+ssize_t FileSystem::WriteFile(INode &inode, const char *buff, diskaddr_t begin, size_t size, uid_t uid)
+{
+
 	diskaddr_t end = begin + size, it;
 	bid_t K = begin / BLOCK_SIZE, blockID;
 	it = K * BLOCK_SIZE;
 	bit_t L = begin - it, cnt;
-	INode &inode = AccessINode(file->curINode);
 	static char Buff0[BLOCK_SIZE] = {0};
 	
 	// 当写入位置超过文件大小时，扩张文件

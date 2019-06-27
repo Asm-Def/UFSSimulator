@@ -76,13 +76,21 @@ class FileSystemTest : public UnionTest
 
 	FileSystemTest()
 	{
-		
+		try{ FS.CreateVHD((disksize_t) BLOCK_SIZE * 32, "2.vhd") ; }
+		catch(string str)
+		{
+			cout << str << endl;
+		}
+		catch(const char *str)
+		{
+			cout << str << endl;
+		}
 	}
 
 	void test()
 	{
-		FS.LoadVHD("1.vhd");
-		FS.FindDir(NULL, "/oaisjdf/aosidjf/iajosd.txt", 0);
+
+		FS.FindDir(FS.getRoot(), "iajosd.txt", 0);
 		cout << typeid(this).name() << ": Suceed" << endl;
 	}
 };
@@ -91,12 +99,10 @@ int main()
 {
 	VHDControllerTest testerVHD;
 	testerVHD.doTest();
-	{
-		FileSystemTest testerFS;
-		testerFS.doTest();
-			
-		puts("destructing FS");
-	}
-	puts("destructed FS");
+	
+	FileSystemTest testerFS;
+	testerFS.doTest();
+
+
 	return 0;
 }

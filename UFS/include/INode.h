@@ -20,7 +20,13 @@ struct INode // Stored in disk	size <= 128
 	diskaddr_t size();
 
 	INode();
-	INode(fmode_t Type, uid_t uid);
+	INode(fmode_t Type, uid_t uid, struct FileSystem *FS);
+	bool checkR(uid_t t);
+	bool checkW(uid_t t);
+	bool checkX(uid_t t);
+	bool isDir() { return (mode & FILE_TYPE_MASK) == FILE_TYPE_DIR; }
+	bool isFile() { return (mode & FILE_TYPE_MASK) == FILE_TYPE_FILE; }
+	bool isLink() { return (mode & FILE_TYPE_MASK) == FILE_TYPE_LINK; }
 	bid_t direct_data[INODE_DIRECT_SIZE]; // direct datablocks
 	bid_t indirect1, indirect2;
 	// max block count = INODE_DATASIZE + sum of (BLOCKSIZE/sizeof(bid_t))^i

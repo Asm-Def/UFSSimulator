@@ -59,6 +59,7 @@ class FileSystem
 	public:
 	FileSystem();
 	~FileSystem();
+	FileDir *getRoot() const { return rootDir; }
 
 	// VHD
 
@@ -98,7 +99,10 @@ class FileSystem
 	bool MakeHardLink(struct FileDir *curDir, std::string Dest, std::string Src, uid_t uid);
 	bool MakeSoftLink(struct FileDir *curDir, std::string Dest, std::string Src, uid_t uid);
 	ssize_t ReadFile(struct FileDir *file, char *buff, diskaddr_t begin, size_t size, uid_t uid);
+	ssize_t ReadFile(INode &inode, char *buff, diskaddr_t begin, size_t size, uid_t uid);
 	ssize_t WriteFile(struct FileDir *file, const char *buff, diskaddr_t begin, size_t size, uid_t uid);
+	ssize_t WriteFile(INode &inode, const char *buff, diskaddr_t begin, size_t size, uid_t uid);
+
 
 	 // 将文件截短至{length}，返回得到的实际长度。回收多余的磁盘块
 	diskaddr_t TruncFile(struct FileDir *file, diskaddr_t length, uid_t uid);
