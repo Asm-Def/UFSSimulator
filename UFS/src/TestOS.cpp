@@ -60,6 +60,10 @@ void Session::Interact()
 			{
 				tmp = FS->FindDir(this->curDir, dir, user.uid);
 				if(tmp == NULL) continue;
+				if(!FS->AccessINode(tmp->curINode).checkX(user.uid))
+				{
+					throw (string) "no executing permission of " + tmp->name;
+				}
 				ChangeDir(curDir, tmp);
 			}
 			catch(string str) { printf("Failed to goto %s: %s\n", dir.c_str(), str.c_str()); continue; }
@@ -178,6 +182,21 @@ void Session::Interact()
 			os->userManager.CreateUser(uname, upass);
 			printf("%s successfully created\n", uname.c_str());
 		}
+		else if(cmd == "chmod")
+		{
+			string fname;
+			int mode; ss >> fname >> mode;
+			FileDir *file;
+			try { file = FS->FindDir(curDir, fname, user.uid); }
+			catch(string str) { printf("cannot find file %s:%s\n", fname.c_str(), str.c_str()); continue; }
+			INode &inode = FS->AccessINode(file->curINode);
+			if(!inode.checkW(user.uid))
+			{
+				printf("permission denied on %s\n", fname.c_str());
+				continue;
+			}
+			inode.mode = (inode.mode & FILE_TYPE_MASK) | (mode / 10) * 8 + (mode % 10);
+		}
 	}
 }
 
@@ -204,7 +223,12 @@ Session *TestOS::Login(string name, string pass)
 	uid_t uid;
 	User user;
 	if(!userManager.Login(name, pass, uid, user)) return NULL;
-	return new Session(RootFS.getRoot(), user, 0, &RootFS, this);
+	FileDir *home;
+	if(name == "root")
+	{
+		return new Session(RootFS.getRoot(), user, 0, &RootFS, this);
+	}
+	return new Session(RootFS.FindDir(RootFS.getRoot(), "/home/"+name, uid), user, 0, &RootFS, this);
 }
 
 TestOS::TestOS() : RootFS(), userManager(&RootFS)
@@ -224,7 +248,7 @@ int main()
 		std::cout << "0: Exit\n1: Login\n2: Show Users\n3: Create new vhd\n" << endl;
 		int opt;
 		std::cin >> opt;
-		printf("opt = %d\n", opt);
+		//printf("opt = %d\n", opt);
 		if(opt == 0) break;
 		if(opt == 2)
 		{

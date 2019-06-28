@@ -83,7 +83,7 @@ bool VHDController::ReadBlock(char *buff, bid_t blockID , bit_t begin ,  int len
 	else
 	{
 		printf("blockID=%d, len=%d, begin=%d, BLOCKSIZE=%d, number=%d\n", blockID, len, begin, BLOCK_SIZE, info.blockNumber);
-		throw "ReadBlock parameters error";
+		throw (std::string) "ReadBlock parameters error";
 	}
 }
 bool VHDController::WriteBlock(const char *buff, bid_t blockID , bit_t begin ,  int len )
@@ -98,16 +98,16 @@ bool VHDController::WriteBlock(const char *buff, bid_t blockID , bit_t begin ,  
 		else
 		    return true;
 	}
-	else throw "WriteBlock parameters error";
+	else throw (std::string) "WriteBlock parameters error";
 }
 
 bool VHDController::FreeBlock(bid_t blockID)
 {
-	if(!_file.is_open()) throw "no VHD mounted";
+	if(!_file.is_open()) throw (std::string) "no VHD mounted";
 	if(this->superBlock.cnt == GROUP_SIZE)      //   the memeory of superblock is full
 	{
 		if(!this->WriteBlock((char *)&this->superBlock , blockID , 0 , sizeof(SuperBlock))){
-			throw "Write error";
+			throw (std::string) "Write error";
 			return false;
 		}
 		//for(int i = 0;i < GROUP_SIZE;++i) printf("%lld ", superBlock.freeStack[i]);puts("");
@@ -130,7 +130,7 @@ bool VHDController::FreeBlock(bid_t blockID)
 
 bool VHDController::AllocBlock(bid_t &newblock)
 {
-	if(!_file.is_open()) throw "no VHD mounted";
+	if(!_file.is_open()) throw (std::string) "no VHD mounted";
 	if(this->superBlock.freeStack[this->superBlock.cnt-1] == 0) return false;      //the memeory is empty
 	newblock = this->superBlock.freeStack[this->superBlock.cnt-1]; 
 	if(this->superBlock.cnt == 1)

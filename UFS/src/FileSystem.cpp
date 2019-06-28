@@ -399,7 +399,8 @@ void FileSystem::ListDir(FileDir *curDir, uid_t uid)
 		//printf("Reading (%d %d)\n", BlockID, Location);
 		FileDir *tmp = new FileDir(string(namebuff), INodeMem(BlockID, Location, this));
 		//curDir->subDirs.push_back(tmp);
-		AddFileDir(curDir, tmp, uid);
+		curDir->subDirs.push_back(tmp);
+		tmp->parent = curDir;
 	}
 }
 void FileSystem::SaveDir(FileDir *curDir, uid_t uid)
@@ -454,21 +455,23 @@ FileDir *FileSystem::FindDir(FileDir *cur, std::string dir, uid_t uid)
 	// TODO: 文件名结尾出现/的情况
 	if(last == "") return cur;
 
-
+	//printf("finding %s\n", dir.c_str());
 	INode &inode = AccessINode(cur->curINode);
 	fmode_t tmp = (uid == inode.owner) ? ((inode.mode & (7<<3))>>3) : (inode.mode & 7);
-
+	//puts("can access");
 	{
 		//printf("curDir = \"%s\", cur->INode = (%d,%d)\n", cur->name.c_str(), cur->curINode.BlockID, cur->curINode.Location);
 	}
 
 	ListDir(cur, uid);
+	//puts("can list");
 	for(auto &it : cur->subDirs) if(it->name == last)
 	{
-		if((tmp & FILE_OTHER_X) == 0) // cannot move into cur
+		if(!inode.checkX(uid)) // cannot move into cur
 		{
 			Throw("Failed to visit " + it->name + " in " + cur->name + " : Perssion Denied");
 		}
+		///printf("found %s\n", it->name.c_str());
 		return it;
 	}
 	Throw(dir + " Not Found");
@@ -476,6 +479,7 @@ FileDir *FileSystem::FindDir(FileDir *cur, std::string dir, uid_t uid)
 }
 void FileSystem::AddFileDir(FileDir *curDir, FileDir *newDir, uid_t uid)
 {
+	if(!AccessINode(curDir->curINode).checkW(uid)) throw (std::string) "no writing permission";
 	curDir->subDirs.push_back(newDir);
 	newDir->parent = curDir;
 	SaveDir(curDir, uid);
@@ -507,7 +511,7 @@ bool FileSystem::MakeDir(FileDir *curDir, std::string fname, uid_t uid)
 std::string FileSystem::FileDirDetail(FileDir *curDir, uid_t uid)
 {
 	INode &inode = AccessINode(curDir->curINode);
-	if(!inode.checkR(uid)) throw "permission denied";
+	if(!inode.checkR(uid)) throw (std::string) "permission denied";
 	std::string ans;
 	if(inode.isDir()) ans = ans + 'd';
 	else if(inode.isFile()) ans = ans + '-';
@@ -539,7 +543,9 @@ bool FileSystem::Touch(struct FileDir *curDir, std::string fname, uid_t uid)
 	from = getDir(fname), last = getName(fname);
 	curDir = FindDir(curDir, from, uid);
 	
-	if(!AccessINode(curDir->curINode).checkR(uid)) throw "no executing permission";
+	if(!AccessINode(curDir->curINode).checkX(uid)) throw (std::string) "no executing permission";
+	if(!AccessINode(curDir->curINode).checkW(uid)) throw (std::string) "no writing permission";
+
 	bid_t BlockID;
 	bit_t Location;
 	AllocINode(BlockID, Location);
@@ -614,6 +620,7 @@ bool FileSystem::MakeHardLink(FileDir *curDir, std::string Dest, std::string Src
 	from = getDir(Dest);
 	destDir = FindLastDir(curDir, Dest, last, uid);
 	if(destDir == NULL) Throw("Wrong director of Dest");
+	if(!AccessINode(destDir->curINode).checkW(uid)) throw (string) "no writing permission";
 
 	FileDir *newDir = NULL;
 	try
@@ -641,6 +648,8 @@ bool FileSystem::MakeSoftLink(FileDir *curDir, std::string Dest, std::string Src
 	from = getDir(Dest);
 	destDir = FindLastDir(curDir, Dest, last, uid);
 	if(destDir == NULL) Throw("Wrong director of Dest");
+	if(!AccessINode(destDir->curINode).checkW(uid)) throw (string) "no writing permission";
+
 
 	// 创建INode和目录
 	bid_t BlockID;
@@ -663,6 +672,7 @@ ssize_t FileSystem::ReadFile(FileDir *file, char *buff, diskaddr_t begin, size_t
 }
 ssize_t FileSystem::ReadFile(INode &inode, char *buff, diskaddr_t begin, size_t size, uid_t uid)
 {
+	if(!inode.checkR(uid)) throw (string) "no reading permission";
 	if(begin >= inode.size())
 	{
 		return EOF;
@@ -698,6 +708,7 @@ ssize_t FileSystem::WriteFile(FileDir *file, const char *buff, diskaddr_t begin,
 ssize_t FileSystem::WriteFile(INode &inode, const char *buff, diskaddr_t begin, size_t size, uid_t uid)
 {
 	if(!size) return 0;
+	//if(!inode.checkW(uid)) throw (string) "no writing permission";
 	diskaddr_t end = begin + size, it;
 	bid_t K = begin / BLOCK_SIZE, blockID;
 	it = K * BLOCK_SIZE;
@@ -767,6 +778,7 @@ diskaddr_t FileSystem::TruncFile(struct FileDir *file, diskaddr_t length, uid_t 
 	bid_t K = length / BLOCK_SIZE; // blocks -> K
 	INode &inode = AccessINode(file->curINode);
 	inode.atime = inode.mtime = time(NULL);
+	if(!inode.checkW(uid)) throw (string) "no writing permission";
 	while(inode.blocks > (long long) K)
 	{
 		PopBlock(inode);

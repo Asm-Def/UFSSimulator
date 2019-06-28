@@ -47,13 +47,13 @@ INode *INodeMem::getINode() // get a INode pointer
 }
 bool INode::checkR(uid_t t)
 {
-	return t == owner ? (mode & FILE_OWNER_R) : (mode & FILE_OTHER_R);
+	return t == USER_ROOT_UID || (t == owner ? (mode & FILE_OWNER_R) : (mode & FILE_OTHER_R));
 }
 bool INode::checkW(uid_t t)
 {
-	return t == owner ? (mode & FILE_OWNER_W) : (mode & FILE_OTHER_W);
+	return t == USER_ROOT_UID || (t == owner ? (mode & FILE_OWNER_W) : (mode & FILE_OTHER_W));
 }
 bool INode::checkX(uid_t t)
 {
-	return t == owner ? (mode & FILE_OWNER_X) : (mode & FILE_OTHER_X);
+	return t == USER_ROOT_UID || (t == owner ? (mode & FILE_OWNER_X) : (mode & FILE_OTHER_X));
 }

@@ -39,6 +39,13 @@ void UserManager::CreateUser(std::string name, std::string pass)
 	user.pass = pass;
 	user.uid = userlist.size();
 	userlist.push_back(user);
+	FileDir *curDir = FS->FindDir(FS->getRoot(), "/home", USER_ROOT_UID);
+	bid_t bid; bit_t bit;
+	FS->AccessINode(bid, bit);
+	FS->MakeDir(curDir, name, USER_ROOT_UID);
+	INode &inode = FS->AccessINode((FS->FindDir(curDir, name, user.uid))->curINode);
+	inode.mode = (FILE_TYPE_DIR | FILE_OWNER_R | FILE_OWNER_W | FILE_OWNER_X);
+	inode.owner = user.uid;
 	saveUsers();
 }
 bool UserManager::saveUsers()
@@ -59,7 +66,7 @@ bool UserManager::loadUsers()
 	FileDir *file = NULL;
 	try{file = FS->FindDir(FS->getRoot(), "/etc/passwd", USER_ROOT_UID);}
 	catch(string str) { printf("cannot find userlist:%s\n", str.c_str());}
-	if(file == NULL) throw "no userlist";
+	if(file == NULL) throw (std::string) "no userlist";
 	static char str[4096 * 32];
 	string tmpname, pass;
 	uid_t uid;
