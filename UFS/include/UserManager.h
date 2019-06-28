@@ -7,13 +7,14 @@
 class UserManager
 {
 	struct FileSystem *FS;
+	public:
 	bool loadUsers();
 	bool saveUsers();
 	std::vector<User> userlist;
-	public:
 	UserManager(struct FileSystem *fs);
 	~UserManager();
 	bool Login(std::string name, std::string pass, uid_t &uid);
+	bool Login(std::string name, std::string pass, uid_t &uid, User &us);
 	void CreateUser(std::string name, std::string pass);
 };
 #endif

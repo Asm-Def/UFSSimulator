@@ -15,17 +15,18 @@ class Session
 {
 	FileSystem *FS;
 	FileDir *curDir;
-	uid_t uid;
+	TestOS *os;
+	User user;
 	ufspid_t pid;
 	ProcessFDTable processFDTable;
 	public:
-	Session(FileDir *dir, uid_t u, ufspid_t p, FileSystem *fs)
-		: curDir(dir), uid(u), pid(p), processFDTable(fs, p, u) {}
+	Session(FileDir *dir, User u, ufspid_t p, FileSystem *fs, TestOS *o)
+		: curDir(dir), user(u), pid(p), FS(fs), processFDTable(fs, p, u.uid), os(o) {}
 		
 	bool AddUser(string name, string pass = ""); // only while uid=0
 	bool CreateFile(string *dir);
 	int OpenFile(string *dir); // return an FD in processFDTable
-
+	void ChangeDir(FileDir *&curDir, FileDir *newDir);
 	diskoff_t lseek(int fd, diskoff_t offset, int fromwhere);
 	ssize_t read(int fd, void *buf, size_t count);
 	ssize_t write(int fd, void *buf, size_t count);
@@ -35,9 +36,9 @@ class Session
 class TestOS
 {
 	FileSystem RootFS;
-	UserManager userManager;
 
 	public:
+	UserManager userManager;
 	TestOS();
 	void Init(string vhdfilename, string rootpass = "root");
 	vector<string> ListUsers();

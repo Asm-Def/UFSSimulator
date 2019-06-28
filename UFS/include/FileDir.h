@@ -27,6 +27,11 @@ struct FileDir
 		}
 		subDirs.clear();
 	}
+	std::string fulldir()
+	{
+		if(parent == this) return "";
+		return parent->fulldir() + "/" + name;
+	}
 };
 
 #endif

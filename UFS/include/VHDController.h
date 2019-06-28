@@ -7,9 +7,7 @@ class VHDController;
 #include "SuperBlock.h" 
 #include <string>
 #include <fstream>
-#ifdef DEBUG
-#include <iostream>
-#endif
+
 class VHDController
 {
 	std::string VHDname;           //VHD name 

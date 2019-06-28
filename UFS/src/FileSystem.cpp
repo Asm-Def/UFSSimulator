@@ -3,6 +3,7 @@
 #include "../include/INode.h"
 #include <string>
 #include <iostream>
+#include <ctime>
 using namespace std;
 FileSystem::FileSystem() : rootDir(NULL)
 {
@@ -65,7 +66,7 @@ bool FileSystem::FormatVHD() // 重建文件系统(同时创建根目录)
 		INode &tmp = AccessINode(FindDir(rootDir, "etc/passwd", USER_ROOT_UID)->curINode);
 		tmp.mode = tmp.mode & ~(FILE_OTHER_R | FILE_OTHER_W | FILE_OTHER_X);
 		const char *str = "root 0 123456\n";
-		WriteFile(tmp, str, 0, sizeof(str), USER_ROOT_UID);
+		WriteFile(tmp, str, 0, strlen(str) + 1, USER_ROOT_UID);
 	}
 
 	MakeDir(rootDir, "home", USER_ROOT_UID);
@@ -185,8 +186,9 @@ bool FileSystem::AllocINode(bid_t &BlockID, bit_t &Location)
 
 bool ShowMem(char *buff, size_t size)
 {
-	//for(int i = 0;i < size;++i) printf("%02x ", buff[i]);
-	//puts("");
+	for(int i = 0;i < size;++i) printf("%02x ", buff[i]);
+	puts("");
+	return true;
 }
 bool FileSystem::ReadINode(INode *inode, bid_t BlockID, bit_t Location)
 {
@@ -364,6 +366,7 @@ void FileSystem::ListDir(FileDir *curDir, uid_t uid)
 	int sz = 0;
 	//printf("%d %d\n", curDir->curINode.BlockID, curDir->curINode.Location);
 	INode &inode = AccessINode(curDir->curINode);
+	if(inode.isLink()) curDir = FollowLink(curDir, uid);
 	//printf("fmode = %o\n", inode.mode);
 	if(!inode.isDir())
 	{
@@ -395,7 +398,8 @@ void FileSystem::ListDir(FileDir *curDir, uid_t uid)
 	//printf("sz=%d,", sz);
 		//printf("Reading (%d %d)\n", BlockID, Location);
 		FileDir *tmp = new FileDir(string(namebuff), INodeMem(BlockID, Location, this));
-		curDir->subDirs.push_back(tmp);
+		//curDir->subDirs.push_back(tmp);
+		AddFileDir(curDir, tmp, uid);
 	}
 }
 void FileSystem::SaveDir(FileDir *curDir, uid_t uid)
@@ -427,7 +431,12 @@ FileDir *FileSystem::FindLastDir(FileDir *cur, std::string dir, std::string &las
 		dir.pop_back();
 		from = getDir(dir), last = getName(dir);
 	}
+	//printf("from=\"%s\", last=\"%s\"\n", from.c_str(), last.c_str());
 	return FindDir(cur, from, uid);
+}
+FileDir *FileSystem::FollowLink(FileDir *cur, uid_t uid)
+{
+	return cur;
 }
 FileDir *FileSystem::FindDir(FileDir *cur, std::string dir, uid_t uid)
 {
@@ -495,6 +504,32 @@ bool FileSystem::MakeDir(FileDir *curDir, std::string fname, uid_t uid)
 	return true;
 }
 
+std::string FileSystem::FileDirDetail(FileDir *curDir, uid_t uid)
+{
+	INode &inode = AccessINode(curDir->curINode);
+	if(!inode.checkR(uid)) throw "permission denied";
+	std::string ans;
+	if(inode.isDir()) ans = ans + 'd';
+	else if(inode.isFile()) ans = ans + '-';
+	else ans = ans + 'l';
+	char buff[128];
+	ans += ((inode.mode & FILE_OWNER_R) ? 'r' : '-');
+	ans += ((inode.mode & FILE_OWNER_W) ? 'w' : '-');
+	ans += ((inode.mode & FILE_OWNER_X) ? 'x' : '-');
+	ans += ((inode.mode & FILE_OTHER_R) ? 'r' : '-');
+	ans += ((inode.mode & FILE_OTHER_W) ? 'w' : '-');
+	ans += ((inode.mode & FILE_OTHER_X) ? 'x' : '-');
+	ans += ' ';
+	sprintf(buff, "%2d ", inode.lcnt); ans += buff;
+	sprintf(buff, "%3d ", inode.owner); ans += buff;
+	sprintf(buff, "%6d ", inode.size()); ans += buff;
+	sprintf(buff, "%4d ", inode.blocks + 1); ans += buff;
+	sprintf(buff, "%-10s ", curDir->name.c_str()); ans += buff;
+	sprintf(buff, "(%-5d%5d)", curDir->curINode.BlockID, curDir->curINode.Location); ans += buff;
+	sprintf(buff, " %s", ctime(&inode.mtime)); ans += buff;
+	return ans;
+}
+
 // File
 
 
@@ -504,6 +539,7 @@ bool FileSystem::Touch(struct FileDir *curDir, std::string fname, uid_t uid)
 	from = getDir(fname), last = getName(fname);
 	curDir = FindDir(curDir, from, uid);
 	
+	if(!AccessINode(curDir->curINode).checkR(uid)) throw "no executing permission";
 	bid_t BlockID;
 	bit_t Location;
 	AllocINode(BlockID, Location);
@@ -520,11 +556,23 @@ bool FileSystem::Remove(struct FileDir *curDir, std::string fname, uid_t uid)
 	std::string from, last;
 	from = getDir(fname), last = getName(fname);
 	curDir = FindDir(curDir, from, uid);
-
 	// TODO: INode回收
 	for(vector<FileDir*>::iterator it = curDir->subDirs.begin();it != curDir->subDirs.end();++it) if((*it)->name == last)
 	{
+		if(!AccessINode((*it)->curINode).checkW(uid))
+		{
+			throw "no writing permission" ;
+		}
+		puts("sodij");
+		printf("owner=%d, uid=%d, checkR=%d\n",
+		AccessINode((*it)->curINode).owner, uid,AccessINode((*it)->curINode).checkR(uid));
+		if(--AccessINode((*it)->curINode).lcnt == 0)
+		{
+			TruncFile(*it, 0, uid);
+		}
+		delete *it;
 		curDir->subDirs.erase(it);
+		SaveDir(curDir, uid);
 		return true;
 	}
 	Throw(fname + " not found");
@@ -549,10 +597,12 @@ std::string getName(const std::string &fullDir)
 	while(it != fullDir.length()) ans += fullDir[it++];
 	return ans;
 }
+
+// Create at Dest, point to Src;
 bool FileSystem::MakeHardLink(FileDir *curDir, std::string Dest, std::string Src, uid_t uid)
 {
 	FileDir *destDir, *srcDir;
-	std::string filename = getName(Dest);
+	std::string from, last;
 
 	srcDir = FindDir(curDir, Src, uid);
 	if(srcDir == NULL) Throw("Wrong director of Src");
@@ -561,23 +611,35 @@ bool FileSystem::MakeHardLink(FileDir *curDir, std::string Dest, std::string Src
 	if((src.mode & FILE_TYPE_MASK) == FILE_TYPE_DIR)
 		Throw("Can't make hard link for directors");
 
-	destDir = FindDir(curDir, getDir(Dest), uid);
+	from = getDir(Dest);
+	destDir = FindLastDir(curDir, Dest, last, uid);
 	if(destDir == NULL) Throw("Wrong director of Dest");
 
-	if(FindDir(destDir, filename, uid) != NULL)
-		Throw(filename + " already exists");
+	FileDir *newDir = NULL;
+	try
+	{
+		newDir = FindDir(destDir, last, uid);
+	}
+	catch(string str) {}
 
-	FileDir *newDir = new FileDir(filename, srcDir->curINode);
+	if(newDir != NULL)
+		Throw(last + " already exists");
+
+	newDir = new FileDir(last, srcDir->curINode);
+	++AccessINode(newDir->curINode).lcnt;
 	AddFileDir(destDir, newDir, uid);
 	return true;
 }
+
+// Create at Dest, point to Src;
 bool FileSystem::MakeSoftLink(FileDir *curDir, std::string Dest, std::string Src, uid_t uid)
 {
 	// 处理目录、文件名
 
 	FileDir *destDir;
-	std::string filename = getName(Dest);
-	destDir = FindDir(curDir, getDir(Dest), uid);
+	std::string from, last;
+	from = getDir(Dest);
+	destDir = FindLastDir(curDir, Dest, last, uid);
 	if(destDir == NULL) Throw("Wrong director of Dest");
 
 	// 创建INode和目录
@@ -585,7 +647,7 @@ bool FileSystem::MakeSoftLink(FileDir *curDir, std::string Dest, std::string Src
 	bit_t Location;
 	AllocINode(BlockID, Location);
 	INodeMem inodemem(BlockID, Location, this);
-	FileDir *newDir = new FileDir(filename, inodemem);
+	FileDir *newDir = new FileDir(last, inodemem);
 	
 	// 设置INode信息
 	INode &inode = AccessINode(inodemem);
@@ -705,7 +767,7 @@ diskaddr_t FileSystem::TruncFile(struct FileDir *file, diskaddr_t length, uid_t 
 	bid_t K = length / BLOCK_SIZE; // blocks -> K
 	INode &inode = AccessINode(file->curINode);
 	inode.atime = inode.mtime = time(NULL);
-	while(inode.blocks > K)
+	while(inode.blocks > (long long) K)
 	{
 		PopBlock(inode);
 	}

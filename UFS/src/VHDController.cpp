@@ -58,6 +58,7 @@ bool VHDController::Load(string vhdname)
 	if(_file.is_open()) Save();
 	VHDname = vhdname;
 	_file.open(vhdname, ios::in | ios::out | ios::binary);
+	if(!_file.is_open()) return false;
 	loadInfoBlock();
 	if(!ReadBlock((char *) &superBlock, SUPER_BLOCK_ID, 0, sizeof(SuperBlock)))
 	{

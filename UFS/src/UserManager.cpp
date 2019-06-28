@@ -2,6 +2,7 @@
 #include "../include/FileSystem.h"
 #include "../include/FileDir.h"
 #include <vector>
+#include <sstream>
 using namespace std;
 
 UserManager::UserManager(FileSystem *fs) : FS(fs)
@@ -9,15 +10,22 @@ UserManager::UserManager(FileSystem *fs) : FS(fs)
 }
 UserManager::~UserManager()
 {
-	saveUsers();
 	userlist.clear();
 }
+#include <iostream>
 bool UserManager::Login(std::string name, std::string pass, uid_t &uid)
 {
+	User us;
+	return Login(name, pass, uid, us);
+}
+bool UserManager::Login(std::string name, std::string pass, uid_t &uid, User &us)
+{
 	loadUsers();
+	for(auto &user : userlist) std::cout << " userlist: " << user.name << " " << user.pass << endl;
 	for(auto &user : userlist) if(user.name == name)
 	{
 		uid = user.uid;
+		us = user;
 		if(user.pass != pass) return false;
 		else return true;
 	}
@@ -37,31 +45,36 @@ bool UserManager::saveUsers()
 {
 	FileDir *file = FS->FindDir(FS->getRoot(), "/etc/passwd", USER_ROOT_UID);
 	FS->TruncFile(file, 0, USER_ROOT_UID);
+	disksize_t sz = 0;
 	for(auto &user : userlist)
 	{
 		string tmp = user.name + " " + to_string(user.uid) + " " + user.pass + "\n";
-		FS->WriteFile(file, tmp.c_str(), file->curINode.size(), tmp.length() + 1, USER_ROOT_UID);
+		sz += FS->WriteFile(file, tmp.c_str(), sz, tmp.length(), USER_ROOT_UID);
 	}
+	FS->WriteFile(file, "", sz, 1, USER_ROOT_UID);
 	return true;
 }
 bool UserManager::loadUsers()
 {
-	FileDir *file = FS->FindDir(FS->getRoot(), "/etc/passwd", USER_ROOT_UID);
-	static char str[4096 * 32], tmpname[4096], pass[4096];
+	FileDir *file = NULL;
+	try{file = FS->FindDir(FS->getRoot(), "/etc/passwd", USER_ROOT_UID);}
+	catch(string str) { printf("cannot find userlist:%s\n", str.c_str());}
+	if(file == NULL) throw "no userlist";
+	static char str[4096 * 32];
+	string tmpname, pass;
 	uid_t uid;
 	ssize_t sz = FS->ReadFile(file, str, 0, file->curINode.size(), USER_ROOT_UID);
-	ssize_t it = 0;
 	userlist.clear();
-	while(it < sz)
+	istringstream ss(str);
+	while(true)
 	{
-		int t = sscanf(str+it, "%s %u %s", tmpname, &uid, pass);
-		if(t == 0) break;
+		if(!(ss >> tmpname >> uid >> pass)) break;
+		//printf("UserManager::loadUsers: %s %u %s\n", tmpname.c_str(), uid, pass.c_str());
 		User user;
 		user.uid = uid;
 		user.name = tmpname;
-		user.pass = user.pass;
+		user.pass = pass;
 		userlist.push_back(user);
-		it += t;
 	}
 	return true;
 }

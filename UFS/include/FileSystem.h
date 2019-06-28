@@ -83,6 +83,7 @@ class FileSystem
 	struct FileDir *FindLastDir(FileDir *cur, std::string dir, std::string &last, uid_t uid);
 	// find director from cur by dir[]. return NULL if no exist
 	struct FileDir *FindDir(FileDir *cur, std::string dir, uid_t uid);
+	struct FileDir *FollowLink(FileDir *cur, uid_t uid);
 	// Save director
 	void SaveDir(FileDir *curDir, uid_t uid);
 	// 在curDir目录下新增一个FileDir
@@ -90,6 +91,7 @@ class FileSystem
 	// create director {fname} if not exist (新创建的FileDir内容中应包含"."和".."两个FileDir，它们的INode地址分别为当前目录本身的INode和上级目录的INode)
 	bool MakeDir(struct FileDir *curDir, std::string fname, uid_t uid);
 
+	std::string FileDirDetail(FileDir *curDir, uid_t uid);
 	// File
 
 	// create fild {fname} if not exist
